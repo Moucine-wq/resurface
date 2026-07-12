@@ -1,0 +1,9 @@
+{
+  "name": "resurface",
+  "version": "2.0.0",
+  "description": "Ne perds plus jamais une relance qui te coute de l'argent - SaaS avec Stripe et emails",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": "22" },
+  "dependencies": {}
+}
