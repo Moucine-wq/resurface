@@ -15,12 +15,16 @@ const stripeLib = require('./lib/stripe');
 const emailLib = require('./lib/email');
 
 const PORT = process.env.PORT || 3000;
-const DB_PATH = path.join(__dirname, 'data', 'resurface.db');
+const DATA_DIR = path.join(__dirname, 'data');
+const DB_PATH = path.join(DATA_DIR, 'resurface.db');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const FREE_LIMIT = 10;
 const DIGEST_HOUR_UTC = Number(process.env.DIGEST_HOUR_UTC || 8); // 08h UTC par défaut
 
 // ---------- DB ----------
+// Le dossier data/ peut être absent (ex: Git ne suit pas les dossiers vides) — on le crée
+// défensivement pour que le démarrage ne dépende jamais de la présence d'un .gitkeep.
+fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
