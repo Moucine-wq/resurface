@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resurface — Retrouvez ce qui compte au bon moment</title>
+<meta name="description" content="Capturez une idée, une relance ou une chose à vérifier en quelques secondes. Resurface vous la remet sous les yeux automatiquement au bon moment.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230A0A0F'/%3E%3Cline x1='20' y1='62' x2='80' y2='62' stroke='%23242430' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M50 78 L50 30 M32 46 L50 28 L68 46' fill='none' stroke='%234DFFC3' stroke-width='9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0A0A0F; --card: #14141c; --border: #24242e;
+    --mint: #4DFFC3; --gold: #FFC94D; --text: #EDEDF2; --muted: #8A8A99;
+    --danger: #ff6b6b;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+  .hidden { display: none !important; }
+
+  #auth { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .auth-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 100%; max-width: 380px; position: relative; }
+  .auth-box h1 { font-size: 24px; margin-bottom: 6px; }
+  .auth-box .tagline { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+  input { width: 100%; background: #1c1c26; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-size: 14px; margin-bottom: 12px; font-family: var(--font); }
+  input:focus { outline: none; border-color: var(--mint); }
+  button { cursor: pointer; font-family: var(--font); border: none; border-radius: 8px; }
+  select { font-family: var(--font); }
+  .btn-primary { width: 100%; background: var(--mint); color: #0A0A0F; font-weight: 600; padding: 12px; font-size: 14px; margin-top: 6px; }
+  .btn-primary:hover { opacity: 0.9; }
+  .switch-link { text-align: center; margin-top: 16px; font-size: 13px; color: var(--muted); }
+  .switch-link a { color: var(--mint); cursor: pointer; text-decoration: none; }
+  .auth-error { color: var(--danger); font-size: 13px; margin-bottom: 10px; min-height: 16px; }
+
+  .lang-switch {
+    position: absolute; top: 16px; right: 16px;
+    background: #1c1c26; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); font-size: 12px; padding: 6px 8px;
+  }
+
+  #app { max-width: 640px; margin: 0 auto; padding: 24px 20px 80px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; gap: 12px; }
+  header .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  header .logo span { color: var(--mint); }
+  header .tagline { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .plan-badge { font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 20px; white-space: nowrap; cursor: pointer; border: 1px solid var(--border); }
+  .plan-badge.free { color: var(--muted); background: transparent; }
+  .plan-badge.premium { color: #0A0A0F; background: var(--gold); border-color: var(--gold); }
+  #logoutBtn { background: transparent; color: var(--muted); font-size: 13px; padding: 6px 10px; }
+  #logoutBtn:hover { color: var(--text); }
+  #langSelect {
+    background: #1c1c26; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); font-size: 12px; padding: 6px 8px;
+  }
+
+  .banner { border-radius: 10px; padding: 12px 14px; margin-bottom: 20px; font-size: 13px; }
+  .banner.success { background: rgba(77,255,195,0.1); border: 1px solid var(--mint); color: var(--mint); }
+  .banner.info { background: rgba(255,201,77,0.1); border: 1px solid var(--gold); color: var(--gold); }
+
+  .capture-box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 20px; }
+  .capture-box input[type=text] { margin-bottom: 10px; }
+  .capture-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .capture-row select, .capture-row input[type=date] { background: #1c1c26; border: 1px solid var(--border); border-radius: 8px; padding: 10px; color: var(--text); font-size: 13px; font-family: var(--font); }
+  select:disabled { opacity: 0.4; cursor: not-allowed; }
+  .capture-row button.add-btn { background: var(--mint); color: #0A0A0F; font-weight: 600; padding: 10px 18px; font-size: 13px; margin-left: auto; }
+
+  .usage-bar { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 24px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .usage-bar .upgrade-link { color: var(--mint); cursor: pointer; font-weight: 600; }
+
+  section.group { margin-bottom: 28px; }
+  section.group h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  section.group h2 .count { background: var(--border); color: var(--text); font-size: 11px; padding: 1px 7px; border-radius: 10px; }
+  section.group.today h2 .count { background: var(--mint); color: #0A0A0F; }
+
+  .item { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px; }
+  .item .check { width: 20px; height: 20px; border: 1.5px solid var(--muted); border-radius: 50%; flex-shrink: 0; margin-top: 2px; cursor: pointer; }
+  .item .check:hover { border-color: var(--mint); }
+  .item-body { flex: 1; min-width: 0; }
+  .item-text { font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+  .item.done .item-text { text-decoration: line-through; color: var(--muted); }
+  .item-meta { display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+  .item-date { font-size: 11px; color: var(--muted); }
+  .item-tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: #1c1c26; color: var(--mint); border: 1px solid var(--border); }
+  .item-recurring { font-size: 11px; color: var(--gold); }
+  .item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .item-actions button { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 11px; padding: 5px 9px; }
+  .item-actions button:hover { color: var(--text); border-color: var(--muted); }
+
+  .empty-state { color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; }
+  .footer-actions { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+  .footer-actions button { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 8px 14px; }
+  .footer-actions button:hover { color: var(--text); }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; max-width: 420px; width: 100%; }
+  .modal h3 { font-size: 18px; margin-bottom: 6px; }
+  .modal .modal-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .modal ul { list-style: none; margin-bottom: 20px; }
+  .modal li { font-size: 13px; padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .modal li:last-child { border-bottom: none; }
+  .modal li::before { content: "✓"; color: var(--gold); font-weight: 700; }
+  .modal .price { font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .modal .price span { font-size: 13px; color: var(--muted); font-weight: 400; }
+  .modal button.cta { width: 100%; background: var(--gold); color: #0A0A0F; font-weight: 700; padding: 13px; font-size: 14px; margin-top: 6px; }
+  .modal button.cta:hover { opacity: 0.9; }
+  .modal button.cta:disabled { opacity: 0.5; cursor: wait; }
+  .modal .close-modal { background: transparent; color: var(--muted); font-size: 12px; width: 100%; padding: 10px; margin-top: 6px; }
+  .modal .modal-error { color: var(--danger); font-size: 12px; text-align: center; margin-top: 10px; min-height: 14px; }
+
+  /* ---------- Landing page ---------- */
+  #landing { max-width: 1040px; margin: 0 auto; padding: 0 20px 100px; }
+  .l-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 0; flex-wrap: wrap; gap: 12px;
+  }
+  .l-header .logo { font-size: 18px; font-weight: 700; }
+  .l-header .logo span { color: var(--mint); }
+  .l-nav { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .l-nav a { color: var(--muted); text-decoration: none; font-size: 14px; cursor: pointer; }
+  .l-nav a:hover { color: var(--text); }
+  .l-nav select { background: #1c1c26; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; padding: 6px 8px; }
+  .l-btn-primary {
+    background: var(--mint); color: #0A0A0F; font-weight: 600; padding: 9px 16px; font-size: 14px; white-space: nowrap;
+  }
+  .l-btn-primary:hover { opacity: 0.9; }
+  .l-btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); padding: 9px 16px; font-size: 14px; }
+
+  .l-hero { text-align: center; padding: 70px 0 40px; }
+  .l-hero h1 { font-size: 42px; line-height: 1.15; letter-spacing: -0.02em; max-width: 720px; margin: 0 auto 18px; }
+  .l-hero p { color: var(--muted); font-size: 17px; max-width: 560px; margin: 0 auto 32px; line-height: 1.5; }
+  .l-hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .l-hero-ctas .l-btn-primary, .l-hero-ctas .l-btn-ghost { padding: 13px 24px; font-size: 15px; }
+
+  .l-demo {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    max-width: 480px; margin: 48px auto 0; padding: 24px; text-align: left;
+  }
+  .l-demo-input { background: #1c1c26; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 14px; color: var(--text); margin-bottom: 14px; }
+  .l-demo-arrow { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .l-demo-result { background: rgba(77,255,195,0.08); border: 1px solid var(--mint); border-radius: 8px; padding: 12px 14px; font-size: 14px; color: var(--mint); }
+
+  .l-position {
+    text-align: center; font-size: 21px; font-weight: 600; max-width: 620px;
+    margin: 80px auto; line-height: 1.4;
+  }
+
+  .l-section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); text-align: center; margin-bottom: 32px; }
+
+  .l-usecases { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 90px; }
+  .l-usecase { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; font-size: 15px; line-height: 1.4; }
+
+  .l-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 90px; }
+  .l-step { text-align: center; padding: 0 12px; }
+  .l-step-num {
+    width: 36px; height: 36px; border-radius: 50%; background: var(--mint); color: #0A0A0F;
+    font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 15px;
+  }
+  .l-step h3 { font-size: 16px; margin-bottom: 8px; }
+  .l-step p { color: var(--muted); font-size: 14px; line-height: 1.4; }
+
+  .l-digest { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; max-width: 560px; margin: 0 auto 90px; }
+  .l-digest h3 { font-size: 17px; margin-bottom: 18px; }
+  .l-digest-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+  .l-digest-item:last-child { border-bottom: none; }
+  .l-digest-item-text { font-size: 14px; }
+  .l-digest-item-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .l-digest-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .l-digest-actions span { font-size: 11px; color: var(--muted); border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; }
+
+  .l-final-cta { text-align: center; padding: 50px 0; }
+  .l-final-cta h2 { font-size: 28px; margin-bottom: 24px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+  .l-footer { text-align: center; color: var(--muted); font-size: 12px; padding-top: 40px; border-top: 1px solid var(--border); }
+
+  @media (max-width: 640px) {
+    .l-hero h1 { font-size: 30px; }
+    .l-usecases { grid-template-columns: 1fr; }
+    .l-steps { grid-template-columns: 1fr; gap: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="landing">
+  <header class="l-header">
+    <div class="logo">Re<span>surface</span></div>
+    <nav class="l-nav">
+      <a id="lNavHow" data-i18n="l_nav_how"></a>
+      <a id="lNavPricing" data-i18n="l_nav_pricing"></a>
+      <select id="langSelectLanding">
+        <option value="fr">FR</option>
+        <option value="en">EN</option>
+        <option value="es">ES</option>
+        <option value="pt">PT</option>
+      </select>
+      <a id="lNavLogin" data-i18n="l_nav_login"></a>
+      <button class="l-btn-primary" id="lNavCta" data-i18n="l_nav_cta_btn"></button>
+    </nav>
+  </header>
+
+  <section class="l-hero">
+    <h1 data-i18n="l_hero_title"></h1>
+    <p data-i18n="l_hero_subtitle"></p>
+    <div class="l-hero-ctas">
+      <button class="l-btn-primary" id="lHeroCta" data-i18n="l_hero_cta_primary"></button>
+      <button class="l-btn-ghost" id="lHeroSecondary" data-i18n="l_hero_cta_secondary"></button>
+    </div>
+
+    <div class="l-demo">
+      <div class="l-demo-input" id="lDemoInput"></div>
+      <div class="l-demo-arrow">↓</div>
+      <div class="l-demo-result" id="lDemoResult"></div>
+    </div>
+  </section>
+
+  <p class="l-position" data-i18n="l_position"></p>
+
+  <div class="l-usecases">
+    <div class="l-usecase" data-i18n="l_usecase1"></div>
+    <div class="l-usecase" data-i18n="l_usecase2"></div>
+    <div class="l-usecase" data-i18n="l_usecase3"></div>
+    <div class="l-usecase" data-i18n="l_usecase4"></div>
+  </div>
+
+  <div id="lHowSection">
+    <p class="l-section-title" data-i18n="l_how_title"></p>
+    <div class="l-steps">
+      <div class="l-step">
+        <div class="l-step-num">1</div>
+        <h3 data-i18n="l_step1_title"></h3>
+        <p data-i18n="l_step1_body"></p>
+      </div>
+      <div class="l-step">
+        <div class="l-step-num">2</div>
+        <h3 data-i18n="l_step2_title"></h3>
+        <p data-i18n="l_step2_body"></p>
+      </div>
+      <div class="l-step">
+        <div class="l-step-num">3</div>
+        <h3 data-i18n="l_step3_title"></h3>
+        <p data-i18n="l_step3_body"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="l-digest">
+    <h3 id="lDigestTitle"></h3>
+    <div class="l-digest-item">
+      <div>
+        <div class="l-digest-item-text" id="lDigestItem1"></div>
+        <div class="l-digest-item-meta" id="lDigestItem1Meta"></div>
+      </div>
+      <div class="l-digest-actions"><span id="lDigestDone"></span><span id="lDigestSnooze"></span></div>
+    </div>
+    <div class="l-digest-item">
+      <div>
+        <div class="l-digest-item-text" id="lDigestItem2"></div>
+        <div class="l-digest-item-meta" id="lDigestItem2Meta"></div>
+      </div>
+      <div class="l-digest-actions"><span id="lDigestDone2"></span><span id="lDigestSnooze2"></span></div>
+    </div>
+    <div class="l-digest-item">
+      <div>
+        <div class="l-digest-item-text" id="lDigestItem3"></div>
+        <div class="l-digest-item-meta" id="lDigestItem3Meta"></div>
+      </div>
+      <div class="l-digest-actions"><span id="lDigestDone3"></span><span id="lDigestSnooze3"></span></div>
+    </div>
+  </div>
+
+  <div id="lPricingSection">
+    <p class="l-section-title" data-i18n="l_pricing_title"></p>
+    <div class="l-digest" style="text-align:center;">
+      <div class="price" style="margin-bottom:14px;">9€ <span data-i18n="modal_per_month" style="font-size:14px;color:var(--muted);"></span></div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:20px;" data-i18n="l_pricing_body"></p>
+      <button class="l-btn-primary" id="lPricingCta" data-i18n="l_hero_cta_primary" style="padding:12px 22px;"></button>
+    </div>
+  </div>
+
+  <div class="l-final-cta">
+    <h2 data-i18n="l_final_title"></h2>
+    <button class="l-btn-primary" id="lFinalCta" data-i18n="l_final_btn" style="padding:14px 28px;font-size:15px;"></button>
+  </div>
+
+  <div class="l-footer" id="lFooter"></div>
+</div>
+
+<div id="auth" class="hidden">
+  <div class="auth-box">
+    <select id="langSelectAuth" class="lang-switch">
+      <option value="fr">FR</option>
+      <option value="en">EN</option>
+      <option value="es">ES</option>
+      <option value="pt">PT</option>
+    </select>
+    <h1>Resurface</h1>
+    <p class="tagline" data-i18n="tagline"></p>
+    <div class="auth-error" id="authError"></div>
+    <form id="authForm">
+      <input type="email" id="email" required autocomplete="username">
+      <input type="password" id="password" required autocomplete="current-password">
+      <button type="submit" class="btn-primary" id="authSubmit"></button>
+    </form>
+    <div class="switch-link">
+      <span id="switchText"></span>
+      <a id="switchLink"></a>
+    </div>
+    <div class="switch-link" style="margin-top:8px;">
+      <a id="backToLanding" data-i18n="back_to_landing"></a>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div>
+      <div class="logo">Re<span>surface</span></div>
+      <div class="tagline" data-i18n="tagline"></div>
+    </div>
+    <div class="header-right">
+      <select id="langSelect">
+        <option value="fr">FR</option>
+        <option value="en">EN</option>
+        <option value="es">ES</option>
+        <option value="pt">PT</option>
+      </select>
+      <div class="plan-badge free" id="planBadge"></div>
+      <button id="logoutBtn"></button>
+    </div>
+  </header>
+
+  <div id="banner"></div>
+
+  <div class="capture-box">
+    <input type="text" id="itemText">
+    <div class="capture-row">
+      <select id="whenSelect">
+        <option value="0" data-i18n="when_today"></option>
+        <option value="1" data-i18n="when_tomorrow"></option>
+        <option value="7" selected data-i18n="when_1week"></option>
+        <option value="14" data-i18n="when_2weeks"></option>
+        <option value="30" data-i18n="when_1month"></option>
+        <option value="90" data-i18n="when_3months"></option>
+        <option value="custom" data-i18n="when_custom"></option>
+      </select>
+      <input type="date" id="customDate" class="hidden">
+      <select id="categorySelect">
+        <option value="" data-i18n="cat_none"></option>
+        <option value="Client" data-i18n="cat_client"></option>
+        <option value="Fournisseur" data-i18n="cat_supplier"></option>
+        <option value="Admin" data-i18n="cat_admin"></option>
+        <option value="Idée" data-i18n="cat_idea"></option>
+      </select>
+      <select id="recurringSelect">
+        <option value="" data-i18n="rec_none"></option>
+        <option value="7" data-i18n="rec_weekly"></option>
+        <option value="30" data-i18n="rec_monthly"></option>
+      </select>
+      <button class="add-btn" id="addBtn"></button>
+    </div>
+  </div>
+
+  <div class="usage-bar">
+    <span id="usageText"></span>
+    <span class="upgrade-link" id="upgradeLink"></span>
+  </div>
+
+  <section class="group today">
+    <h2><span data-i18n="section_today"></span> <span class="count" id="todayCount">0</span></h2>
+    <div id="todayList"></div>
+  </section>
+  <section class="group">
+    <h2><span data-i18n="section_upcoming"></span> <span class="count" id="upcomingCount">0</span></h2>
+    <div id="upcomingList"></div>
+  </section>
+  <section class="group">
+    <h2><span data-i18n="section_done"></span> <span class="count" id="doneCount">0</span></h2>
+    <div id="doneList"></div>
+  </section>
+
+  <div class="footer-actions">
+    <button id="manageBillingBtn" class="hidden" data-i18n="manage_billing"></button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 data-i18n="modal_title"></h3>
+    <div class="modal-sub" data-i18n="modal_sub"></div>
+    <div class="price">9€ <span data-i18n="modal_per_month"></span></div>
+    <ul>
+      <li data-i18n="modal_feat1"></li>
+      <li data-i18n="modal_feat2"></li>
+      <li data-i18n="modal_feat3"></li>
+      <li data-i18n="modal_feat4"></li>
+    </ul>
+    <button class="cta" id="checkoutBtn" data-i18n="modal_cta"></button>
+    <button class="close-modal" id="closeModalBtn" data-i18n="modal_close"></button>
+    <div class="modal-error" id="modalError"></div>
+  </div>
+</div>
+
+<script>
+// ---------- i18n ----------
+const I18N = {
+  fr: {
+    tagline: "Ne perds plus jamais une relance qui te coûte de l'argent.",
+    email_placeholder: 'Email', password_placeholder: 'Mot de passe (min 6 caractères)',
+    login_submit: 'Se connecter', signup_submit: 'Créer mon compte',
+    switch_to_signup: 'Pas encore de compte ?', switch_to_signup_link: 'Créer un compte',
+    switch_to_login: 'Déjà un compte ?', switch_to_login_link: 'Se connecter',
+    logout: 'Déconnexion',
+    plan_free: 'Plan Gratuit', plan_premium: '★ Premium',
+    item_placeholder: 'Relancer M. Dupont pour le devis...',
+    when_today: "Aujourd'hui", when_tomorrow: 'Demain', when_1week: 'Dans 1 semaine',
+    when_2weeks: 'Dans 2 semaines', when_1month: 'Dans 1 mois', when_3months: 'Dans 3 mois',
+    when_custom: 'Date précise…',
+    cat_none: 'Sans catégorie', cat_client: '🔵 Client', cat_supplier: '🟠 Fournisseur',
+    cat_admin: '⚪ Admin', cat_idea: '🟢 Idée',
+    rec_none: 'Ponctuel', rec_weekly: 'Chaque semaine', rec_monthly: 'Chaque mois',
+    add_btn: 'Ajouter',
+    usage_free: (n, limit) => `${n} / ${limit} rappels actifs (gratuit)`,
+    usage_premium: (n) => `${n} rappels actifs — illimité (Premium)`,
+    upgrade_link: 'Passer en Premium →',
+    section_today: "Aujourd'hui", section_upcoming: 'À venir', section_done: 'Terminé',
+    empty_today: "Rien à voir aujourd'hui. 🎉", empty_upcoming: 'Rien de prévu.', empty_done: "Rien de terminé pour l'instant.",
+    date_prevu: 'Prévu le ', date_fait: 'Fait le ',
+    snooze_btn: '+7j', recurring_badge: '↻ récurrent',
+    manage_billing: 'Gérer mon abonnement',
+    modal_title: 'Passer en Premium',
+    modal_sub: "Pour les indépendants qui ne peuvent pas se permettre d'oublier une relance qui rapporte.",
+    modal_per_month: '/ mois',
+    modal_feat1: 'Rappels illimités', modal_feat2: 'Catégories (Client, Fournisseur, Admin, Idée)',
+    modal_feat3: 'Rappels récurrents automatiques', modal_feat4: 'Email quotidien avec tes rappels du jour',
+    modal_cta: 'Continuer vers le paiement', modal_cta_loading: 'Redirection...', modal_close: 'Plus tard',
+    banner_success: 'Paiement confirmé ! Activation du Premium en cours (quelques secondes)...',
+    banner_cancelled: 'Paiement annulé — tu peux réessayer à tout moment.',
+    session_expired: 'Session expirée',
+    error_generic: 'Erreur.', error_server_unreachable: 'Impossible de contacter le serveur.',
+    date_locale: 'fr-FR',
+    back_to_landing: '← Retour à l\'accueil',
+    aria_mark_done: 'Marquer comme fait',
+    aria_mark_pending: 'Marquer comme à faire',
+    aria_snooze: 'Reporter de 7 jours : {text}',
+    aria_delete: 'Supprimer : {text}',
+    l_nav_how: 'Comment ça marche',
+    l_nav_pricing: 'Tarifs',
+    l_nav_login: 'Se connecter',
+    l_nav_cta_btn: 'Essayer gratuitement',
+    l_hero_title: 'Ne laissez plus les choses importantes disparaître.',
+    l_hero_subtitle: 'Capturez une idée, une relance ou une chose à vérifier en quelques secondes. Resurface vous la remet sous les yeux automatiquement au bon moment.',
+    l_hero_cta_primary: 'Créer mon premier rappel',
+    l_hero_cta_secondary: 'Voir comment ça marche',
+    l_demo_input: 'Relancer le propriétaire dans deux semaines',
+    l_demo_result: 'Cet élément refera surface le 28 juillet.',
+    l_position: 'Pas une autre todo-list. Une boîte à retardement pour les choses que vous ne pouvez pas traiter maintenant.',
+    l_usecase1: 'Relancer quelqu\'un dans quinze jours',
+    l_usecase2: 'Vérifier un abonnement avant son renouvellement',
+    l_usecase3: 'Reprendre une idée dans trois mois',
+    l_usecase4: 'Revenir sur une opportunité au bon moment',
+    l_how_title: 'Comment ça marche',
+    l_step1_title: 'Capturez',
+    l_step1_body: 'Notez en quelques secondes, sans formulaire compliqué.',
+    l_step2_title: 'Choisissez une date',
+    l_step2_body: 'Demain, dans deux semaines, dans trois mois — vous décidez.',
+    l_step3_title: 'Retrouvez au bon moment',
+    l_step3_body: 'L\'élément réapparaît automatiquement, groupé dans votre digest du jour.',
+    l_digest_title: 'Aujourd\'hui dans Resurface',
+    l_digest_item1: 'Relancer Sarah pour la facture',
+    l_digest_item1_meta: 'Programmé il y a 14 jours',
+    l_digest_item2: 'Vérifier l\'abonnement Canva',
+    l_digest_item2_meta: 'Renouvellement dans trois jours',
+    l_digest_item3: 'Reprendre l\'idée de boutique automatique',
+    l_digest_item3_meta: 'Sauvegardée il y a deux mois',
+    l_digest_action_done: 'Fait',
+    l_digest_action_snooze: 'Reporter',
+    l_pricing_title: 'Tarifs',
+    l_pricing_body: 'Rappels illimités, catégories, récurrence automatique, digest quotidien par email.',
+    l_final_title: 'Libérez votre esprit sans perdre ce qui compte.',
+    l_final_btn: 'Essayer Resurface',
+    l_footer: 'Capturez maintenant. Retrouvez au bon moment.',
+  },
+  en: {
+    tagline: "Never miss a follow-up that costs you money.",
+    email_placeholder: 'Email', password_placeholder: 'Password (min 6 characters)',
+    login_submit: 'Log in', signup_submit: 'Create account',
+    switch_to_signup: "Don't have an account?", switch_to_signup_link: 'Create one',
+    switch_to_login: 'Already have an account?', switch_to_login_link: 'Log in',
+    logout: 'Log out',
+    plan_free: 'Free Plan', plan_premium: '★ Premium',
+    item_placeholder: 'Follow up with client on the quote...',
+    when_today: 'Today', when_tomorrow: 'Tomorrow', when_1week: 'In 1 week',
+    when_2weeks: 'In 2 weeks', when_1month: 'In 1 month', when_3months: 'In 3 months',
+    when_custom: 'Specific date…',
+    cat_none: 'No category', cat_client: '🔵 Client', cat_supplier: '🟠 Supplier',
+    cat_admin: '⚪ Admin', cat_idea: '🟢 Idea',
+    rec_none: 'One-time', rec_weekly: 'Every week', rec_monthly: 'Every month',
+    add_btn: 'Add',
+    usage_free: (n, limit) => `${n} / ${limit} active reminders (free)`,
+    usage_premium: (n) => `${n} active reminders — unlimited (Premium)`,
+    upgrade_link: 'Upgrade to Premium →',
+    section_today: 'Today', section_upcoming: 'Upcoming', section_done: 'Done',
+    empty_today: "Nothing to see today. 🎉", empty_upcoming: 'Nothing scheduled.', empty_done: 'Nothing completed yet.',
+    date_prevu: 'Due ', date_fait: 'Done on ',
+    snooze_btn: '+7d', recurring_badge: '↻ recurring',
+    manage_billing: 'Manage subscription',
+    modal_title: 'Upgrade to Premium',
+    modal_sub: "For freelancers who can't afford to miss a follow-up that pays off.",
+    modal_per_month: '/ month',
+    modal_feat1: 'Unlimited reminders', modal_feat2: 'Categories (Client, Supplier, Admin, Idea)',
+    modal_feat3: 'Automatic recurring reminders', modal_feat4: "Daily email with today's reminders",
+    modal_cta: 'Continue to payment', modal_cta_loading: 'Redirecting...', modal_close: 'Later',
+    banner_success: 'Payment confirmed! Activating Premium (a few seconds)...',
+    banner_cancelled: 'Payment cancelled — you can try again anytime.',
+    session_expired: 'Session expired',
+    error_generic: 'Error.', error_server_unreachable: 'Could not reach the server.',
+    date_locale: 'en-US',
+    back_to_landing: '← Back to home',
+    aria_mark_done: 'Mark as done',
+    aria_mark_pending: 'Mark as pending',
+    aria_snooze: 'Snooze 7 days: {text}',
+    aria_delete: 'Delete: {text}',
+    l_nav_how: 'How it works',
+    l_nav_pricing: 'Pricing',
+    l_nav_login: 'Log in',
+    l_nav_cta_btn: 'Try for free',
+    l_hero_title: 'Never let important things slip away.',
+    l_hero_subtitle: 'Capture an idea, a follow-up, or something to check on in seconds. Resurface brings it back in front of you automatically at the right time.',
+    l_hero_cta_primary: 'Create my first reminder',
+    l_hero_cta_secondary: 'See how it works',
+    l_demo_input: 'Follow up with the landlord in two weeks',
+    l_demo_result: 'This will resurface on July 28.',
+    l_position: 'Not another to-do list. A time capsule for the things you can\'t deal with right now.',
+    l_usecase1: 'Follow up with someone in two weeks',
+    l_usecase2: 'Check a subscription before it renews',
+    l_usecase3: 'Revisit an idea in three months',
+    l_usecase4: 'Come back to an opportunity at the right time',
+    l_how_title: 'How it works',
+    l_step1_title: 'Capture',
+    l_step1_body: 'Jot it down in seconds, no complicated form.',
+    l_step2_title: 'Pick a date',
+    l_step2_body: 'Tomorrow, in two weeks, in three months — you decide.',
+    l_step3_title: 'Find it at the right time',
+    l_step3_body: 'It resurfaces automatically, grouped in your daily digest.',
+    l_digest_title: 'Today in Resurface',
+    l_digest_item1: 'Follow up with Sarah on the invoice',
+    l_digest_item1_meta: 'Scheduled 14 days ago',
+    l_digest_item2: 'Check the Canva subscription',
+    l_digest_item2_meta: 'Renews in three days',
+    l_digest_item3: 'Revisit the auto-shop idea',
+    l_digest_item3_meta: 'Saved two months ago',
+    l_digest_action_done: 'Done',
+    l_digest_action_snooze: 'Snooze',
+    l_pricing_title: 'Pricing',
+    l_pricing_body: 'Unlimited reminders, categories, automatic recurrence, daily email digest.',
+    l_final_title: 'Clear your mind without losing what matters.',
+    l_final_btn: 'Try Resurface',
+    l_footer: 'Capture now. Find it at the right time.',
+  },
+  es: {
+    tagline: 'Nunca más pierdas un seguimiento que te cuesta dinero.',
+    email_placeholder: 'Correo electrónico', password_placeholder: 'Contraseña (mín. 6 caracteres)',
+    login_submit: 'Iniciar sesión', signup_submit: 'Crear cuenta',
+    switch_to_signup: '¿No tienes cuenta?', switch_to_signup_link: 'Crear una',
+    switch_to_login: '¿Ya tienes cuenta?', switch_to_login_link: 'Iniciar sesión',
+    logout: 'Cerrar sesión',
+    plan_free: 'Plan Gratis', plan_premium: '★ Premium',
+    item_placeholder: 'Dar seguimiento al presupuesto del cliente...',
+    when_today: 'Hoy', when_tomorrow: 'Mañana', when_1week: 'En 1 semana',
+    when_2weeks: 'En 2 semanas', when_1month: 'En 1 mes', when_3months: 'En 3 meses',
+    when_custom: 'Fecha específica…',
+    cat_none: 'Sin categoría', cat_client: '🔵 Cliente', cat_supplier: '🟠 Proveedor',
+    cat_admin: '⚪ Admin', cat_idea: '🟢 Idea',
+    rec_none: 'Único', rec_weekly: 'Cada semana', rec_monthly: 'Cada mes',
+    add_btn: 'Añadir',
+    usage_free: (n, limit) => `${n} / ${limit} recordatorios activos (gratis)`,
+    usage_premium: (n) => `${n} recordatorios activos — ilimitado (Premium)`,
+    upgrade_link: 'Pasar a Premium →',
+    section_today: 'Hoy', section_upcoming: 'Próximos', section_done: 'Completados',
+    empty_today: 'Nada que ver hoy. 🎉', empty_upcoming: 'Nada programado.', empty_done: 'Nada completado todavía.',
+    date_prevu: 'Previsto el ', date_fait: 'Hecho el ',
+    snooze_btn: '+7d', recurring_badge: '↻ recurrente',
+    manage_billing: 'Gestionar suscripción',
+    modal_title: 'Pasar a Premium',
+    modal_sub: 'Para autónomos que no pueden permitirse olvidar un seguimiento rentable.',
+    modal_per_month: '/ mes',
+    modal_feat1: 'Recordatorios ilimitados', modal_feat2: 'Categorías (Cliente, Proveedor, Admin, Idea)',
+    modal_feat3: 'Recordatorios recurrentes automáticos', modal_feat4: 'Email diario con tus recordatorios de hoy',
+    modal_cta: 'Continuar al pago', modal_cta_loading: 'Redirigiendo...', modal_close: 'Más tarde',
+    banner_success: '¡Pago confirmado! Activando Premium (unos segundos)...',
+    banner_cancelled: 'Pago cancelado — puedes intentarlo de nuevo cuando quieras.',
+    session_expired: 'Sesión expirada',
+    error_generic: 'Error.', error_server_unreachable: 'No se pudo contactar con el servidor.',
+    date_locale: 'es-ES',
+    back_to_landing: '← Volver al inicio',
+    aria_mark_done: 'Marcar como hecho',
+    aria_mark_pending: 'Marcar como pendiente',
+    aria_snooze: 'Posponer 7 días: {text}',
+    aria_delete: 'Eliminar: {text}',
+    l_nav_how: 'Cómo funciona',
+    l_nav_pricing: 'Precios',
+    l_nav_login: 'Iniciar sesión',
+    l_nav_cta_btn: 'Probar gratis',
+    l_hero_title: 'No dejes que las cosas importantes desaparezcan.',
+    l_hero_subtitle: 'Captura una idea, un seguimiento o algo que verificar en segundos. Resurface te lo muestra de nuevo automáticamente en el momento adecuado.',
+    l_hero_cta_primary: 'Crear mi primer recordatorio',
+    l_hero_cta_secondary: 'Ver cómo funciona',
+    l_demo_input: 'Dar seguimiento al propietario en dos semanas',
+    l_demo_result: 'Esto resurgirá el 28 de julio.',
+    l_position: 'No es otra lista de tareas. Una cápsula del tiempo para lo que no puedes atender ahora.',
+    l_usecase1: 'Dar seguimiento a alguien en quince días',
+    l_usecase2: 'Verificar una suscripción antes de su renovación',
+    l_usecase3: 'Retomar una idea en tres meses',
+    l_usecase4: 'Volver a una oportunidad en el momento adecuado',
+    l_how_title: 'Cómo funciona',
+    l_step1_title: 'Captura',
+    l_step1_body: 'Anótalo en segundos, sin formularios complicados.',
+    l_step2_title: 'Elige una fecha',
+    l_step2_body: 'Mañana, en dos semanas, en tres meses — tú decides.',
+    l_step3_title: 'Encuéntralo a tiempo',
+    l_step3_body: 'Resurge automáticamente, agrupado en tu resumen diario.',
+    l_digest_title: 'Hoy en Resurface',
+    l_digest_item1: 'Dar seguimiento a Sara por la factura',
+    l_digest_item1_meta: 'Programado hace 14 días',
+    l_digest_item2: 'Verificar la suscripción de Canva',
+    l_digest_item2_meta: 'Se renueva en tres días',
+    l_digest_item3: 'Retomar la idea de la tienda automática',
+    l_digest_item3_meta: 'Guardado hace dos meses',
+    l_digest_action_done: 'Hecho',
+    l_digest_action_snooze: 'Posponer',
+    l_pricing_title: 'Precios',
+    l_pricing_body: 'Recordatorios ilimitados, categorías, recurrencia automática, resumen diario por email.',
+    l_final_title: 'Libera tu mente sin perder lo que importa.',
+    l_final_btn: 'Probar Resurface',
+    l_footer: 'Captura ahora. Encuéntralo a tiempo.',
+  },
+  pt: {
+    tagline: 'Nunca mais perca um follow-up que custa dinheiro.',
+    email_placeholder: 'Email', password_placeholder: 'Senha (mín. 6 caracteres)',
+    login_submit: 'Entrar', signup_submit: 'Criar conta',
+    switch_to_signup: 'Ainda não tem conta?', switch_to_signup_link: 'Criar uma',
+    switch_to_login: 'Já tem conta?', switch_to_login_link: 'Entrar',
+    logout: 'Sair',
+    plan_free: 'Plano Grátis', plan_premium: '★ Premium',
+    item_placeholder: 'Dar retorno ao cliente sobre o orçamento...',
+    when_today: 'Hoje', when_tomorrow: 'Amanhã', when_1week: 'Em 1 semana',
+    when_2weeks: 'Em 2 semanas', when_1month: 'Em 1 mês', when_3months: 'Em 3 meses',
+    when_custom: 'Data específica…',
+    cat_none: 'Sem categoria', cat_client: '🔵 Cliente', cat_supplier: '🟠 Fornecedor',
+    cat_admin: '⚪ Admin', cat_idea: '🟢 Ideia',
+    rec_none: 'Único', rec_weekly: 'Toda semana', rec_monthly: 'Todo mês',
+    add_btn: 'Adicionar',
+    usage_free: (n, limit) => `${n} / ${limit} lembretes ativos (grátis)`,
+    usage_premium: (n) => `${n} lembretes ativos — ilimitado (Premium)`,
+    upgrade_link: 'Assinar Premium →',
+    section_today: 'Hoje', section_upcoming: 'Próximos', section_done: 'Concluídos',
+    empty_today: 'Nada para ver hoje. 🎉', empty_upcoming: 'Nada agendado.', empty_done: 'Nada concluído ainda.',
+    date_prevu: 'Previsto para ', date_fait: 'Concluído em ',
+    snooze_btn: '+7d', recurring_badge: '↻ recorrente',
+    manage_billing: 'Gerenciar assinatura',
+    modal_title: 'Assinar Premium',
+    modal_sub: 'Para autônomos que não podem se dar ao luxo de esquecer um follow-up que compensa.',
+    modal_per_month: '/ mês',
+    modal_feat1: 'Lembretes ilimitados', modal_feat2: 'Categorias (Cliente, Fornecedor, Admin, Ideia)',
+    modal_feat3: 'Lembretes recorrentes automáticos', modal_feat4: 'Email diário com os lembretes do dia',
+    modal_cta: 'Continuar para pagamento', modal_cta_loading: 'Redirecionando...', modal_close: 'Mais tarde',
+    banner_success: 'Pagamento confirmado! Ativando Premium (alguns segundos)...',
+    banner_cancelled: 'Pagamento cancelado — você pode tentar novamente quando quiser.',
+    session_expired: 'Sessão expirada',
+    error_generic: 'Erro.', error_server_unreachable: 'Não foi possível contatar o servidor.',
+    date_locale: 'pt-PT',
+    back_to_landing: '← Voltar ao início',
+    aria_mark_done: 'Marcar como concluído',
+    aria_mark_pending: 'Marcar como pendente',
+    aria_snooze: 'Adiar 7 dias: {text}',
+    aria_delete: 'Excluir: {text}',
+    l_nav_how: 'Como funciona',
+    l_nav_pricing: 'Preços',
+    l_nav_login: 'Entrar',
+    l_nav_cta_btn: 'Experimentar grátis',
+    l_hero_title: 'Não deixe as coisas importantes desaparecerem.',
+    l_hero_subtitle: 'Capture uma ideia, um follow-up ou algo para verificar em segundos. O Resurface traz de volta automaticamente na hora certa.',
+    l_hero_cta_primary: 'Criar meu primeiro lembrete',
+    l_hero_cta_secondary: 'Ver como funciona',
+    l_demo_input: 'Dar retorno ao proprietário em duas semanas',
+    l_demo_result: 'Isso vai ressurgir em 28 de julho.',
+    l_position: 'Não é mais uma lista de tarefas. Uma cápsula do tempo para o que você não pode tratar agora.',
+    l_usecase1: 'Dar retorno a alguém em quinze dias',
+    l_usecase2: 'Verificar uma assinatura antes da renovação',
+    l_usecase3: 'Retomar uma ideia em três meses',
+    l_usecase4: 'Voltar a uma oportunidade na hora certa',
+    l_how_title: 'Como funciona',
+    l_step1_title: 'Capture',
+    l_step1_body: 'Anote em segundos, sem formulário complicado.',
+    l_step2_title: 'Escolha uma data',
+    l_step2_body: 'Amanhã, em duas semanas, em três meses — você decide.',
+    l_step3_title: 'Encontre na hora certa',
+    l_step3_body: 'Ressurge automaticamente, agrupado no seu resumo diário.',
+    l_digest_title: 'Hoje no Resurface',
+    l_digest_item1: 'Dar retorno à Sara sobre a fatura',
+    l_digest_item1_meta: 'Programado há 14 dias',
+    l_digest_item2: 'Verificar a assinatura do Canva',
+    l_digest_item2_meta: 'Renova em três dias',
+    l_digest_item3: 'Retomar a ideia da loja automática',
+    l_digest_item3_meta: 'Salvo há dois meses',
+    l_digest_action_done: 'Concluído',
+    l_digest_action_snooze: 'Adiar',
+    l_pricing_title: 'Preços',
+    l_pricing_body: 'Lembretes ilimitados, categorias, recorrência automática, resumo diário por email.',
+    l_final_title: 'Liberte sua mente sem perder o que importa.',
+    l_final_btn: 'Experimentar Resurface',
+    l_footer: 'Capture agora. Encontre na hora certa.',
+  },
+};
+const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'pt'];
+
+function detectInitialLocale() {
+  const stored = localStorage.getItem('resurface_locale');
+  if (stored && SUPPORTED_LOCALES.includes(stored)) return stored;
+  const nav = (navigator.language || 'fr').slice(0, 2).toLowerCase();
+  return SUPPORTED_LOCALES.includes(nav) ? nav : 'fr';
+}
+
+let currentLocale = detectInitialLocale();
+function t(key) { return (I18N[currentLocale] || I18N.fr)[key]; }
+
+function applyStaticTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if (typeof val === 'string') el.textContent = val;
+  });
+  document.getElementById('email').placeholder = t('email_placeholder');
+  document.getElementById('password').placeholder = t('password_placeholder');
+  authSubmit.textContent = isSignup ? t('signup_submit') : t('login_submit');
+  switchText.textContent = isSignup ? t('switch_to_login') : t('switch_to_signup');
+  switchLink.textContent = isSignup ? t('switch_to_login_link') : t('switch_to_signup_link');
+  document.getElementById('itemText').placeholder = t('item_placeholder');
+  document.getElementById('addBtn').textContent = t('add_btn');
+  document.getElementById('logoutBtn').textContent = t('logout');
+  document.getElementById('upgradeLink').textContent = t('upgrade_link');
+  document.documentElement.lang = currentLocale;
+  document.getElementById('langSelectAuth').value = currentLocale;
+  document.getElementById('langSelect').value = currentLocale;
+  document.getElementById('langSelectLanding').value = currentLocale;
+
+  // Landing page dynamic mockups (illustrative examples, not real data)
+  document.getElementById('lDemoInput').textContent = t('l_demo_input');
+  document.getElementById('lDemoResult').textContent = t('l_demo_result');
+  document.getElementById('lDigestTitle').textContent = t('l_digest_title');
+  document.getElementById('lDigestItem1').textContent = t('l_digest_item1');
+  document.getElementById('lDigestItem1Meta').textContent = t('l_digest_item1_meta');
+  document.getElementById('lDigestItem2').textContent = t('l_digest_item2');
+  document.getElementById('lDigestItem2Meta').textContent = t('l_digest_item2_meta');
+  document.getElementById('lDigestItem3').textContent = t('l_digest_item3');
+  document.getElementById('lDigestItem3Meta').textContent = t('l_digest_item3_meta');
+  document.getElementById('lDigestDone').textContent = t('l_digest_action_done');
+  document.getElementById('lDigestDone2').textContent = t('l_digest_action_done');
+  document.getElementById('lDigestDone3').textContent = t('l_digest_action_done');
+  document.getElementById('lDigestSnooze').textContent = t('l_digest_action_snooze');
+  document.getElementById('lDigestSnooze2').textContent = t('l_digest_action_snooze');
+  document.getElementById('lDigestSnooze3').textContent = t('l_digest_action_snooze');
+  document.getElementById('lFooter').textContent = t('l_footer');
+}
+
+async function setLocale(newLocale, persistToServer) {
+  if (!SUPPORTED_LOCALES.includes(newLocale)) return;
+  currentLocale = newLocale;
+  localStorage.setItem('resurface_locale', newLocale);
+  applyStaticTranslations();
+  refreshPlanUI();
+  if (token) {
+    try { await loadItems(); } catch (e) { /* ignore */ }
+  }
+  if (persistToServer && token) {
+    try { await apiFetch(`${API}/me`, { method: 'PATCH', body: JSON.stringify({ locale: newLocale }) }); }
+    catch (e) { /* silencieux */ }
+  }
+}
+
+document.getElementById('langSelectAuth').addEventListener('change', (e) => setLocale(e.target.value, false));
+document.getElementById('langSelect').addEventListener('change', (e) => setLocale(e.target.value, true));
+document.getElementById('langSelectLanding').addEventListener('change', (e) => setLocale(e.target.value, false));
+
+// ---------- Landing page navigation ----------
+function goToAuth(signupMode) {
+  isSignup = signupMode;
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('auth').classList.remove('hidden');
+  applyStaticTranslations();
+}
+function backToLanding() {
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('landing').classList.remove('hidden');
+  authError.textContent = '';
+}
+document.getElementById('lNavCta').addEventListener('click', () => goToAuth(true));
+document.getElementById('lHeroCta').addEventListener('click', () => goToAuth(true));
+document.getElementById('lPricingCta').addEventListener('click', () => goToAuth(true));
+document.getElementById('lFinalCta').addEventListener('click', () => goToAuth(true));
+document.getElementById('lNavLogin').addEventListener('click', () => goToAuth(false));
+document.getElementById('backToLanding').addEventListener('click', backToLanding);
+document.getElementById('lHeroSecondary').addEventListener('click', () => {
+  document.getElementById('lHowSection').scrollIntoView({ behavior: 'smooth' });
+});
+document.getElementById('lNavHow').addEventListener('click', () => {
+  document.getElementById('lHowSection').scrollIntoView({ behavior: 'smooth' });
+});
+document.getElementById('lNavPricing').addEventListener('click', () => {
+  document.getElementById('lPricingSection').scrollIntoView({ behavior: 'smooth' });
+});
+
+
+// ---------- App state ----------
+const API = '/api';
+let token = localStorage.getItem('resurface_token');
+let isSignup = false;
+let isPremium = false;
+
+// ---------- Auth ----------
+const authForm = document.getElementById('authForm');
+const authError = document.getElementById('authError');
+const switchLink = document.getElementById('switchLink');
+const switchText = document.getElementById('switchText');
+const authSubmit = document.getElementById('authSubmit');
+
+switchLink.addEventListener('click', () => {
+  isSignup = !isSignup;
+  authError.textContent = '';
+  applyStaticTranslations();
+});
+
+authForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  authError.textContent = '';
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  try {
+    const res = await fetch(`${API}/${isSignup ? 'signup' : 'login'}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, locale: currentLocale }),
+    });
+    const data = await res.json();
+    if (!res.ok) { authError.textContent = data.error || t('error_generic'); return; }
+    token = data.token;
+    localStorage.setItem('resurface_token', token);
+    if (data.locale) { currentLocale = data.locale; localStorage.setItem('resurface_locale', data.locale); }
+    showApp();
+  } catch (err) {
+    authError.textContent = t('error_server_unreachable');
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  localStorage.removeItem('resurface_token');
+  token = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('auth').classList.remove('hidden');
+});
+
+function showApp() {
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  applyStaticTranslations();
+  checkUrlParams();
+  refreshMe().then(loadItems);
+}
+
+function checkUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const banner = document.getElementById('banner');
+  if (params.get('checkout') === 'success') {
+    banner.innerHTML = `<div class="banner success">${t('banner_success')}</div>`;
+    setTimeout(() => { refreshMe().then(loadItems); }, 2000);
+  } else if (params.get('checkout') === 'cancelled') {
+    banner.innerHTML = `<div class="banner info">${t('banner_cancelled')}</div>`;
+  }
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
+async function apiFetch(url, opts = {}) {
+  const res = await fetch(url, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) },
+  });
+  if (res.status === 401) {
+    localStorage.removeItem('resurface_token');
+    token = null;
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('auth').classList.remove('hidden');
+    throw new Error(t('session_expired'));
+  }
+  const data = await res.json();
+  if (!res.ok) { const e = new Error(data.error || t('error_generic')); e.code = data.code; e.status = res.status; throw e; }
+  return data;
+}
+
+async function refreshMe() {
+  try {
+    const me = await apiFetch(`${API}/me`);
+    isPremium = me.isPremium;
+    if (me.locale && me.locale !== currentLocale) {
+      currentLocale = me.locale;
+      localStorage.setItem('resurface_locale', me.locale);
+      applyStaticTranslations();
+    }
+    refreshPlanUI();
+  } catch (e) { /* silencieux */ }
+}
+
+// ---------- Plan / Premium UI ----------
+const planBadge = document.getElementById('planBadge');
+const categorySelect = document.getElementById('categorySelect');
+const recurringSelect = document.getElementById('recurringSelect');
+const modalOverlay = document.getElementById('modalOverlay');
+const manageBillingBtn = document.getElementById('manageBillingBtn');
+
+function refreshPlanUI() {
+  planBadge.textContent = isPremium ? t('plan_premium') : t('plan_free');
+  planBadge.className = 'plan-badge ' + (isPremium ? 'premium' : 'free');
+  categorySelect.disabled = !isPremium;
+  recurringSelect.disabled = !isPremium;
+  manageBillingBtn.classList.toggle('hidden', !isPremium);
+}
+
+function openModal() { document.getElementById('modalError').textContent = ''; modalOverlay.classList.add('open'); }
+function closeModal() { modalOverlay.classList.remove('open'); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && modalOverlay.classList.contains('open')) closeModal();
+});
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) closeModal();
+});
+
+document.getElementById('upgradeLink').addEventListener('click', () => { if (!isPremium) openModal(); });
+document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+planBadge.addEventListener('click', () => { if (!isPremium) openModal(); });
+categorySelect.addEventListener('mousedown', (e) => { if (!isPremium) { e.preventDefault(); openModal(); } });
+recurringSelect.addEventListener('mousedown', (e) => { if (!isPremium) { e.preventDefault(); openModal(); } });
+
+document.getElementById('checkoutBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('checkoutBtn');
+  const errEl = document.getElementById('modalError');
+  btn.disabled = true; btn.textContent = t('modal_cta_loading'); errEl.textContent = '';
+  try {
+    const data = await apiFetch(`${API}/stripe/create-checkout-session`, { method: 'POST' });
+    window.location.href = data.url;
+  } catch (err) {
+    errEl.textContent = err.message;
+    btn.disabled = false; btn.textContent = t('modal_cta');
+  }
+});
+
+manageBillingBtn.addEventListener('click', async () => {
+  try {
+    const data = await apiFetch(`${API}/stripe/create-portal-session`, { method: 'POST' });
+    window.location.href = data.url;
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// ---------- Capture ----------
+const whenSelect = document.getElementById('whenSelect');
+const customDate = document.getElementById('customDate');
+whenSelect.addEventListener('change', () => {
+  customDate.classList.toggle('hidden', whenSelect.value !== 'custom');
+});
+
+document.getElementById('addBtn').addEventListener('click', addItem);
+document.getElementById('itemText').addEventListener('keydown', (e) => { if (e.key === 'Enter') addItem(); });
+
+async function addItem() {
+  const textInput = document.getElementById('itemText');
+  const text = textInput.value.trim();
+  if (!text) return;
+
+  let resurfaceAt;
+  if (whenSelect.value === 'custom') {
+    if (!customDate.value) { customDate.focus(); return; }
+    resurfaceAt = customDate.value;
+  } else {
+    const d = new Date();
+    d.setDate(d.getDate() + Number(whenSelect.value));
+    resurfaceAt = d.toISOString().slice(0, 10);
+  }
+
+  try {
+    await apiFetch(`${API}/items`, {
+      method: 'POST',
+      body: JSON.stringify({
+        text, resurfaceAt,
+        category: isPremium ? categorySelect.value : '',
+        recurringDays: isPremium ? recurringSelect.value : '',
+      }),
+    });
+    textInput.value = '';
+    loadItems();
+  } catch (err) {
+    if (err.code === 'LIMIT_REACHED') openModal();
+    else alert(err.message);
+  }
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString(t('date_locale'), { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+function renderItem(item, context) {
+  const div = document.createElement('div');
+  div.className = 'item' + (item.status === 'done' ? ' done' : '');
+
+  const check = document.createElement('div');
+  check.className = 'check';
+  check.setAttribute('role', 'checkbox');
+  check.setAttribute('tabindex', '0');
+  check.setAttribute('aria-checked', item.status === 'done' ? 'true' : 'false');
+  check.setAttribute('aria-label', item.status === 'done' ? t('aria_mark_pending') : t('aria_mark_done'));
+  check.style.background = item.status === 'done' ? 'var(--mint)' : 'transparent';
+  check.addEventListener('click', () => toggleDone(item));
+  check.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDone(item); }
+  });
+
+  const body = document.createElement('div');
+  body.className = 'item-body';
+  const dateLabel = context === 'done' ? t('date_fait') : t('date_prevu');
+  const dateVal = context === 'done' ? item.completedAt.slice(0, 10) : item.resurfaceAt;
+  let metaHtml = `<span class="item-date">${dateLabel}${fmtDate(dateVal)}</span>`;
+  if (item.category) metaHtml += `<span class="item-tag">${escapeHtml(item.category)}</span>`;
+  if (item.recurringDays) metaHtml += `<span class="item-recurring">${t('recurring_badge')}</span>`;
+  body.innerHTML = `<div class="item-text">${escapeHtml(item.text)}</div><div class="item-meta">${metaHtml}</div>`;
+
+  const actions = document.createElement('div');
+  actions.className = 'item-actions';
+  if (context !== 'done') {
+    const snoozeBtn = document.createElement('button');
+    snoozeBtn.textContent = t('snooze_btn');
+    snoozeBtn.setAttribute('aria-label', t('aria_snooze').replace('{text}', item.text));
+    snoozeBtn.addEventListener('click', () => snooze(item.id, 7));
+    actions.appendChild(snoozeBtn);
+  }
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '✕';
+  delBtn.setAttribute('aria-label', t('aria_delete').replace('{text}', item.text));
+  delBtn.addEventListener('click', () => deleteItem(item.id));
+  actions.appendChild(delBtn);
+
+  div.appendChild(check); div.appendChild(body); div.appendChild(actions);
+  return div;
+}
+
+async function toggleDone(item) {
+  const action = item.status === 'done' ? 'reopen' : 'done';
+  await apiFetch(`${API}/items/${item.id}`, { method: 'PATCH', body: JSON.stringify({ action }) });
+  loadItems();
+}
+async function snooze(id, days) {
+  await apiFetch(`${API}/items/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'snooze', days }) });
+  loadItems();
+}
+async function deleteItem(id) {
+  await apiFetch(`${API}/items/${id}`, { method: 'DELETE' });
+  loadItems();
+}
+
+function renderList(listId, countId, items, context) {
+  const el = document.getElementById(listId);
+  document.getElementById(countId).textContent = items.length;
+  el.innerHTML = '';
+  if (items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = context === 'today' ? t('empty_today') : context === 'upcoming' ? t('empty_upcoming') : t('empty_done');
+    el.appendChild(empty);
+    return;
+  }
+  items.forEach(item => el.appendChild(renderItem(item, context)));
+}
+
+async function loadItems() {
+  const data = await apiFetch(`${API}/items`);
+  isPremium = data.isPremium;
+  refreshPlanUI();
+  renderList('todayList', 'todayCount', data.today, 'today');
+  renderList('upcomingList', 'upcomingCount', data.upcoming, 'upcoming');
+  renderList('doneList', 'doneCount', data.done, 'done');
+
+  const activeCount = data.today.length + data.upcoming.length;
+  const usageText = document.getElementById('usageText');
+  const upgradeLink = document.getElementById('upgradeLink');
+  if (isPremium) {
+    usageText.textContent = t('usage_premium')(activeCount);
+    upgradeLink.style.display = 'none';
+  } else {
+    usageText.textContent = t('usage_free')(activeCount, data.freeLimit);
+    upgradeLink.style.display = 'inline';
+  }
+}
+
+applyStaticTranslations();
+if (token) showApp();
+</script>
+</body>
+</html>
