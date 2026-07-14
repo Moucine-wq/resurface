@@ -1,575 +1,119 @@
 'use strict';
 
 const API = '/api';
-const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'pt'];
+const SUPPORTED_LOCALES = ['fr','en','es','pt'];
+const CURRENCIES = ['EUR','USD','GBP','CAD','BRL','XOF','MXN','CHF','AUD','JPY','NGN','GHS','ZAR','INR','CNY'];
+const FALLBACK_PRICES = {EUR:9,USD:9,GBP:8,CAD:12,BRL:29.90,XOF:5500,MXN:149,CHF:9,AUD:14,JPY:1400,NGN:9000,GHS:120,ZAR:169,INR:749,CNY:69};
 const COUNTRY_OPTIONS = [
-  ['US', 'United States'], ['CA', 'Canada'], ['MX', 'México'], ['BR', 'Brasil'], ['GB', 'United Kingdom'],
-  ['FR', 'France'], ['DE', 'Deutschland'], ['IT', 'Italia'], ['ES', 'España'], ['PT', 'Portugal'], ['CH', 'Schweiz / Suisse'],
-  ['BJ', 'Bénin'], ['SN', 'Sénégal'], ['CI', "Côte d’Ivoire"], ['TG', 'Togo'], ['ML', 'Mali'], ['BF', 'Burkina Faso'], ['NE', 'Niger'],
-  ['NG', 'Nigeria'], ['GH', 'Ghana'], ['ZA', 'South Africa'], ['AU', 'Australia'], ['JP', '日本'], ['IN', 'India'], ['CN', '中国'],
+  ['US','United States'],['CA','Canada'],['MX','México'],['BR','Brasil'],['GB','United Kingdom'],
+  ['FR','France'],['DE','Deutschland'],['IT','Italia'],['ES','España'],['PT','Portugal'],['CH','Suisse / Schweiz'],
+  ['BJ','Bénin'],['SN','Sénégal'],['CI','Côte d’Ivoire'],['TG','Togo'],['ML','Mali'],['BF','Burkina Faso'],['NE','Niger'],
+  ['NG','Nigeria'],['GH','Ghana'],['ZA','South Africa'],['AU','Australia'],['JP','日本'],['IN','India'],['CN','中国']
 ];
-const CURRENCY_OPTIONS = ['EUR','USD','GBP','CAD','BRL','XOF','MXN','CHF','AUD','JPY','NGN','GHS','ZAR','INR','CNY'];
-const COUNTRY_CURRENCY = {
-  US:'USD', CA:'CAD', MX:'MXN', BR:'BRL', GB:'GBP', FR:'EUR', DE:'EUR', IT:'EUR', ES:'EUR', PT:'EUR', CH:'CHF',
-  BJ:'XOF', SN:'XOF', CI:'XOF', TG:'XOF', ML:'XOF', BF:'XOF', NE:'XOF', NG:'NGN', GH:'GHS', ZA:'ZAR',
-  AU:'AUD', JP:'JPY', IN:'INR', CN:'CNY',
-};
-const CURRENCY_PRICES = { EUR:9, USD:9, GBP:8, CAD:12, BRL:29.90, XOF:5500, MXN:149, CHF:9, AUD:14, JPY:1400, NGN:9000, GHS:120, ZAR:169, INR:749, CNY:69 };
+const COUNTRY_CURRENCY = {US:'USD',CA:'CAD',MX:'MXN',BR:'BRL',GB:'GBP',FR:'EUR',DE:'EUR',IT:'EUR',ES:'EUR',PT:'EUR',CH:'CHF',BJ:'XOF',SN:'XOF',CI:'XOF',TG:'XOF',ML:'XOF',BF:'XOF',NE:'XOF',NG:'NGN',GH:'GHS',ZA:'ZAR',AU:'AUD',JP:'JPY',IN:'INR',CN:'CNY'};
 
 const I18N = {
-  fr: {
-    signature:'Capturez maintenant. Retrouvez au bon moment.', beta_free:'Bêta gratuite', welcome_title:'Ce qui compte revient au bon moment.', welcome_sub:'Ajoutez une relance, une idée ou une vérification. Choisissez la date et l’heure : Resurface vous la remet sous les yeux au bon moment.', sample_one:'Relancer le propriétaire pour le bail', sample_two:'Vérifier le renouvellement de l’assurance', sample_three:'Reprendre l’idée du projet client', pwa_note:'Installez Resurface sur votre écran d’accueil pour l’utiliser comme une application.', install:'Installer', auth_sub:'Votre compte synchronise vos rappels et votre fuseau horaire.', create_account:'Créer un compte', login:'Connexion', email:'Email', password:'Mot de passe — 8 caractères minimum', privacy_auth:'Pendant la bêta, toutes les fonctions sont gratuites. Aucun paiement et aucune carte bancaire.', signup_title:'Commencez avec Resurface', login_title:'Bon retour', signup_btn:'Créer mon compte', login_btn:'Me connecter',
-    today:'Aujourd’hui', upcoming:'À venir', completed:'Terminés', settings:'Réglages', today_title:'Votre journée', due_today:'à traiter aujourd’hui', scheduled:'programmés', finished:'terminés', digest_title:'Ce qui refait surface', new_item:'Nouvel élément', upcoming_title:'À venir', upcoming_sub:'Toutes les choses programmées pour plus tard.', all_scheduled:'Éléments programmés', completed_title:'Historique', completed_sub:'Ce que vous avez déjà traité.', history:'Éléments terminés', settings_sub:'Personnalisez l’heure, le fuseau et le digest.',
-    capture_title:'Programmer un retour', capture_sub:'Écrivez la chose à ne pas perdre, puis choisissez quand elle doit refaire surface.', what_resurface:'Qu’est-ce qui doit refaire surface ?', tomorrow:'Demain', next_week:'Dans une semaine', two_weeks:'Dans deux semaines', one_month:'Dans un mois', custom:'Date précise', date:'Date', time:'Heure', optional_options:'Options facultatives', category:'Catégorie', recurrence:'Répétition', no_category:'Aucune catégorie', cat_work:'Travail', cat_personal:'Personnel', cat_money:'Argent', cat_idea:'Idée', cat_other:'Autre', one_time:'Une seule fois', daily:'Chaque jour', weekly:'Chaque semaine', biweekly:'Toutes les 2 semaines', monthly:'Chaque mois', quarterly:'Tous les 3 mois', yearly:'Chaque année', cancel:'Annuler', schedule:'Programmer', save:'Enregistrer', saved:'Programmé pour',
-    empty_today_title:'Rien à traiter maintenant', empty_today:'Les éléments prévus aujourd’hui apparaîtront ici.', empty_upcoming_title:'Rien de programmé', empty_upcoming:'Ajoutez une relance, une idée ou une vérification.', empty_done_title:'Aucun élément terminé', empty_done:'Les éléments traités formeront votre historique.', snooze:'Reporter', edit:'Modifier', delete:'Supprimer', reopen:'Rouvrir', done:'Terminer', confirm_delete:'Supprimer définitivement cet élément ?', marked_done:'Élément terminé', snoozed:'Élément reporté', deleted:'Élément supprimé', updated:'Élément mis à jour',
-    snooze_title:'Reporter cet élément', snooze_sub:'Choisissez sa nouvelle date et sa nouvelle heure.', edit_title:'Modifier l’élément',
-    automatic_context:'Date, heure et pays', automatic_context_sub:'Le fuseau horaire de votre appareil peut être appliqué automatiquement à chaque connexion.', timezone:'Fuseau horaire', country:'Pays', country_help:'Utilisé pour préparer la future tarification locale, mais aucun paiement n’est actif pendant la bêta.', auto_detect:'Détection automatique', auto_detect_help:'Utilise le fuseau horaire et la région configurés sur votre appareil. Aucune position GPS n’est nécessaire.', use_device:'Utiliser les réglages de cet appareil', digest_settings:'Digest quotidien', digest_settings_sub:'Choisissez l’heure locale à laquelle recevoir votre récapitulatif.', digest_time:'Heure du digest', digest_time_help:'Cette heure est interprétée dans votre fuseau horaire.', email_digest:'Digest par email', email_digest_help:'Disponible si le service email est configuré sur Railway.', enabled:'Activé', disabled:'Désactivé', privacy_location:'Localisation et vie privée', privacy_location_sub:'Resurface n’a pas besoin de suivre votre position exacte pour adapter vos dates et vos heures.', location_note:'Le fuseau horaire est détecté sans GPS. Le bouton ci-dessous peut afficher votre position précise uniquement sur cet appareil pour vérification : les coordonnées ne sont ni envoyées au serveur ni enregistrées.', check_gps:'Vérifier ma position sur cet appareil', gps_wait:'Demande de permission…', gps_denied:'Position indisponible ou permission refusée.', gps_local:'Coordonnées locales uniquement', account:'Compte', logout:'Déconnexion', settings_saved:'Réglages enregistrés', device_tz:'Fuseau détecté sur cet appareil', auto_applied:'Réglages de l’appareil appliqués',
-    session_expired:'Votre session a expiré.', network_error:'Connexion impossible. Vérifiez votre réseau.', generic_error:'Une erreur est survenue.', timezone_hint:'Heure locale selon', install_ready:'Resurface peut être installé comme une application.', install_unavailable:'Utilisez le menu du navigateur puis « Ajouter à l’écran d’accueil ».',
-  },
-  en: {
-    signature:'Capture now. Find it at the right time.', beta_free:'Free beta', welcome_title:'What matters returns at the right time.', welcome_sub:'Add a follow-up, idea, or check. Choose the date and time, and Resurface brings it back when it matters.', sample_one:'Follow up with the landlord about the lease', sample_two:'Check the insurance renewal', sample_three:'Revisit the client project idea', pwa_note:'Install Resurface on your home screen and use it like an app.', install:'Install', auth_sub:'Your account syncs reminders and timezone settings.', create_account:'Create account', login:'Log in', email:'Email', password:'Password — at least 8 characters', privacy_auth:'All features are free during beta. No payment or card required.', signup_title:'Start with Resurface', login_title:'Welcome back', signup_btn:'Create my account', login_btn:'Log in',
-    today:'Today', upcoming:'Upcoming', completed:'Completed', settings:'Settings', today_title:'Your day', due_today:'due today', scheduled:'scheduled', finished:'completed', digest_title:'What resurfaced', new_item:'New item', upcoming_title:'Upcoming', upcoming_sub:'Everything scheduled for later.', all_scheduled:'Scheduled items', completed_title:'History', completed_sub:'What you have already handled.', history:'Completed items', settings_sub:'Customize time, timezone, and digest.',
-    capture_title:'Schedule a return', capture_sub:'Write what you do not want to lose, then choose when it should resurface.', what_resurface:'What should resurface?', tomorrow:'Tomorrow', next_week:'In one week', two_weeks:'In two weeks', one_month:'In one month', custom:'Custom date', date:'Date', time:'Time', optional_options:'Optional options', category:'Category', recurrence:'Repeat', no_category:'No category', cat_work:'Work', cat_personal:'Personal', cat_money:'Money', cat_idea:'Idea', cat_other:'Other', one_time:'One time', daily:'Every day', weekly:'Every week', biweekly:'Every 2 weeks', monthly:'Every month', quarterly:'Every 3 months', yearly:'Every year', cancel:'Cancel', schedule:'Schedule', save:'Save', saved:'Scheduled for',
-    empty_today_title:'Nothing to handle now', empty_today:'Items due today will appear here.', empty_upcoming_title:'Nothing scheduled', empty_upcoming:'Add a follow-up, idea, or check.', empty_done_title:'Nothing completed yet', empty_done:'Handled items will build your history.', snooze:'Snooze', edit:'Edit', delete:'Delete', reopen:'Reopen', done:'Complete', confirm_delete:'Permanently delete this item?', marked_done:'Item completed', snoozed:'Item snoozed', deleted:'Item deleted', updated:'Item updated', snooze_title:'Snooze this item', snooze_sub:'Choose its new date and time.', edit_title:'Edit item',
-    automatic_context:'Date, time, and country', automatic_context_sub:'Your device timezone can be applied automatically whenever you sign in.', timezone:'Timezone', country:'Country', country_help:'Kept for future localized pricing, but payments are disabled during beta.', auto_detect:'Automatic detection', auto_detect_help:'Uses your device timezone and configured region. GPS is not required.', use_device:'Use this device settings', digest_settings:'Daily digest', digest_settings_sub:'Choose the local time for your recap.', digest_time:'Digest time', digest_time_help:'This time is interpreted in your selected timezone.', email_digest:'Email digest', email_digest_help:'Available when email delivery is configured on Railway.', enabled:'Enabled', disabled:'Disabled', privacy_location:'Location and privacy', privacy_location_sub:'Resurface does not need to track your exact location to adapt dates and times.', location_note:'Timezone is detected without GPS. The button below can display your exact position only on this device for verification; coordinates are not sent to the server or saved.', check_gps:'Check my position on this device', gps_wait:'Requesting permission…', gps_denied:'Location unavailable or permission denied.', gps_local:'Local coordinates only', account:'Account', logout:'Log out', settings_saved:'Settings saved', device_tz:'Timezone detected on this device', auto_applied:'Device settings applied', session_expired:'Your session expired.', network_error:'Unable to connect. Check your network.', generic_error:'Something went wrong.', timezone_hint:'Local time in', install_ready:'Resurface can be installed as an app.', install_unavailable:'Use your browser menu and choose “Add to Home Screen”.',
-  },
-  es: {
-    signature:'Captura ahora. Recupéralo en el momento justo.', beta_free:'Beta gratuita', welcome_title:'Lo importante vuelve en el momento justo.', welcome_sub:'Añade un seguimiento, una idea o una verificación. Elige fecha y hora, y Resurface te lo devuelve cuando importa.', sample_one:'Contactar al propietario sobre el contrato', sample_two:'Revisar la renovación del seguro', sample_three:'Retomar la idea del proyecto del cliente', pwa_note:'Instala Resurface en tu pantalla de inicio y úsalo como una aplicación.', install:'Instalar', auth_sub:'Tu cuenta sincroniza recordatorios y zona horaria.', create_account:'Crear cuenta', login:'Entrar', email:'Email', password:'Contraseña — mínimo 8 caracteres', privacy_auth:'Todas las funciones son gratuitas durante la beta. Sin pago ni tarjeta.', signup_title:'Empieza con Resurface', login_title:'Bienvenido de nuevo', signup_btn:'Crear mi cuenta', login_btn:'Entrar',
-    today:'Hoy', upcoming:'Próximos', completed:'Terminados', settings:'Ajustes', today_title:'Tu día', due_today:'para hoy', scheduled:'programados', finished:'terminados', digest_title:'Lo que reaparece', new_item:'Nuevo elemento', upcoming_title:'Próximos', upcoming_sub:'Todo lo programado para más adelante.', all_scheduled:'Elementos programados', completed_title:'Historial', completed_sub:'Lo que ya has gestionado.', history:'Elementos terminados', settings_sub:'Personaliza hora, zona horaria y resumen.',
-    capture_title:'Programar un regreso', capture_sub:'Escribe lo que no quieres perder y elige cuándo debe reaparecer.', what_resurface:'¿Qué debe reaparecer?', tomorrow:'Mañana', next_week:'En una semana', two_weeks:'En dos semanas', one_month:'En un mes', custom:'Fecha exacta', date:'Fecha', time:'Hora', optional_options:'Opciones facultativas', category:'Categoría', recurrence:'Repetición', no_category:'Sin categoría', cat_work:'Trabajo', cat_personal:'Personal', cat_money:'Dinero', cat_idea:'Idea', cat_other:'Otro', one_time:'Una sola vez', daily:'Cada día', weekly:'Cada semana', biweekly:'Cada 2 semanas', monthly:'Cada mes', quarterly:'Cada 3 meses', yearly:'Cada año', cancel:'Cancelar', schedule:'Programar', save:'Guardar', saved:'Programado para',
-    empty_today_title:'Nada que tratar ahora', empty_today:'Los elementos de hoy aparecerán aquí.', empty_upcoming_title:'Nada programado', empty_upcoming:'Añade un seguimiento, idea o verificación.', empty_done_title:'Nada terminado todavía', empty_done:'Los elementos gestionados formarán tu historial.', snooze:'Posponer', edit:'Editar', delete:'Eliminar', reopen:'Reabrir', done:'Terminar', confirm_delete:'¿Eliminar definitivamente este elemento?', marked_done:'Elemento terminado', snoozed:'Elemento pospuesto', deleted:'Elemento eliminado', updated:'Elemento actualizado', snooze_title:'Posponer este elemento', snooze_sub:'Elige su nueva fecha y hora.', edit_title:'Editar elemento',
-    automatic_context:'Fecha, hora y país', automatic_context_sub:'La zona horaria del dispositivo puede aplicarse automáticamente al iniciar sesión.', timezone:'Zona horaria', country:'País', country_help:'Se conserva para futuros precios locales; los pagos están desactivados durante la beta.', auto_detect:'Detección automática', auto_detect_help:'Usa la zona horaria y la región configuradas en el dispositivo. No necesita GPS.', use_device:'Usar ajustes del dispositivo', digest_settings:'Resumen diario', digest_settings_sub:'Elige la hora local de tu resumen.', digest_time:'Hora del resumen', digest_time_help:'Se interpreta en la zona horaria seleccionada.', email_digest:'Resumen por email', email_digest_help:'Disponible si el envío de email está configurado en Railway.', enabled:'Activado', disabled:'Desactivado', privacy_location:'Ubicación y privacidad', privacy_location_sub:'Resurface no necesita seguir tu posición exacta para adaptar fecha y hora.', location_note:'La zona horaria se detecta sin GPS. El botón puede mostrar tu posición exacta solo en este dispositivo; las coordenadas no se envían ni se guardan.', check_gps:'Comprobar mi posición en este dispositivo', gps_wait:'Solicitando permiso…', gps_denied:'Ubicación no disponible o permiso rechazado.', gps_local:'Coordenadas solo locales', account:'Cuenta', logout:'Cerrar sesión', settings_saved:'Ajustes guardados', device_tz:'Zona detectada en este dispositivo', auto_applied:'Ajustes del dispositivo aplicados', session_expired:'Tu sesión ha expirado.', network_error:'No se puede conectar. Revisa tu red.', generic_error:'Ocurrió un error.', timezone_hint:'Hora local en', install_ready:'Resurface se puede instalar como aplicación.', install_unavailable:'Usa el menú del navegador y “Añadir a pantalla de inicio”.',
-  },
-  pt: {
-    signature:'Capture agora. Encontre na hora certa.', beta_free:'Beta gratuita', welcome_title:'O que importa volta na hora certa.', welcome_sub:'Adicione um acompanhamento, ideia ou verificação. Escolha data e hora, e o Resurface devolve quando importa.', sample_one:'Falar com o proprietário sobre o contrato', sample_two:'Verificar a renovação do seguro', sample_three:'Retomar a ideia do projeto do cliente', pwa_note:'Instale o Resurface na tela inicial e use como um aplicativo.', install:'Instalar', auth_sub:'Sua conta sincroniza lembretes e fuso horário.', create_account:'Criar conta', login:'Entrar', email:'Email', password:'Senha — mínimo de 8 caracteres', privacy_auth:'Todos os recursos são gratuitos durante a beta. Sem pagamento ou cartão.', signup_title:'Comece com Resurface', login_title:'Bem-vindo de volta', signup_btn:'Criar minha conta', login_btn:'Entrar',
-    today:'Hoje', upcoming:'Próximos', completed:'Concluídos', settings:'Configurações', today_title:'Seu dia', due_today:'para hoje', scheduled:'programados', finished:'concluídos', digest_title:'O que voltou', new_item:'Novo item', upcoming_title:'Próximos', upcoming_sub:'Tudo programado para depois.', all_scheduled:'Itens programados', completed_title:'Histórico', completed_sub:'O que você já resolveu.', history:'Itens concluídos', settings_sub:'Personalize hora, fuso e resumo.',
-    capture_title:'Programar um retorno', capture_sub:'Escreva o que não quer perder e escolha quando deve voltar.', what_resurface:'O que deve voltar?', tomorrow:'Amanhã', next_week:'Em uma semana', two_weeks:'Em duas semanas', one_month:'Em um mês', custom:'Data exata', date:'Data', time:'Hora', optional_options:'Opções opcionais', category:'Categoria', recurrence:'Repetição', no_category:'Sem categoria', cat_work:'Trabalho', cat_personal:'Pessoal', cat_money:'Dinheiro', cat_idea:'Ideia', cat_other:'Outro', one_time:'Uma vez', daily:'Todo dia', weekly:'Toda semana', biweekly:'A cada 2 semanas', monthly:'Todo mês', quarterly:'A cada 3 meses', yearly:'Todo ano', cancel:'Cancelar', schedule:'Programar', save:'Salvar', saved:'Programado para',
-    empty_today_title:'Nada para resolver agora', empty_today:'Os itens de hoje aparecerão aqui.', empty_upcoming_title:'Nada programado', empty_upcoming:'Adicione um acompanhamento, ideia ou verificação.', empty_done_title:'Nada concluído ainda', empty_done:'Os itens resolvidos formarão seu histórico.', snooze:'Adiar', edit:'Editar', delete:'Excluir', reopen:'Reabrir', done:'Concluir', confirm_delete:'Excluir este item permanentemente?', marked_done:'Item concluído', snoozed:'Item adiado', deleted:'Item excluído', updated:'Item atualizado', snooze_title:'Adiar este item', snooze_sub:'Escolha a nova data e hora.', edit_title:'Editar item',
-    automatic_context:'Data, hora e país', automatic_context_sub:'O fuso horário do aparelho pode ser aplicado automaticamente em cada login.', timezone:'Fuso horário', country:'País', country_help:'Guardado para futuros preços locais; pagamentos estão desativados durante a beta.', auto_detect:'Detecção automática', auto_detect_help:'Usa o fuso e a região configurados no aparelho. GPS não é necessário.', use_device:'Usar configurações do aparelho', digest_settings:'Resumo diário', digest_settings_sub:'Escolha o horário local do resumo.', digest_time:'Hora do resumo', digest_time_help:'Interpretada no fuso horário selecionado.', email_digest:'Resumo por email', email_digest_help:'Disponível se o envio de email estiver configurado no Railway.', enabled:'Ativado', disabled:'Desativado', privacy_location:'Localização e privacidade', privacy_location_sub:'O Resurface não precisa rastrear sua posição exata para adaptar datas e horas.', location_note:'O fuso é detectado sem GPS. O botão pode mostrar sua posição exata apenas neste aparelho; as coordenadas não são enviadas nem salvas.', check_gps:'Verificar minha posição neste aparelho', gps_wait:'Solicitando permissão…', gps_denied:'Localização indisponível ou permissão negada.', gps_local:'Coordenadas apenas locais', account:'Conta', logout:'Sair', settings_saved:'Configurações salvas', device_tz:'Fuso detectado neste aparelho', auto_applied:'Configurações do aparelho aplicadas', session_expired:'Sua sessão expirou.', network_error:'Não foi possível conectar. Verifique sua rede.', generic_error:'Ocorreu um erro.', timezone_hint:'Hora local em', install_ready:'O Resurface pode ser instalado como aplicativo.', install_unavailable:'Use o menu do navegador e “Adicionar à tela inicial”.',
-  },
-};
+fr:{
+nav_how:'Comment ça marche',nav_uses:'Cas d’usage',nav_pricing:'Tarifs',login:'Se connecter',try_free:'Essayer gratuitement',install:'Installer',eyebrow:'Votre mémoire pour plus tard',hero_title:'Ne laissez plus les choses importantes disparaître.',hero_sub:'Capturez une idée, une relance ou une chose à vérifier en quelques secondes. Resurface vous la remet sous les yeux automatiquement au bon moment.',first_reminder:'Créer mon premier rappel',see_how:'Voir comment ça marche',micro:'10 éléments actifs gratuits. Aucune carte bancaire requise.',digest_today:'Aujourd’hui dans Resurface',demo_1:'Relancer Sarah pour la facture',demo_1_meta:'Programmé il y a 14 jours',demo_2:'Vérifier le renouvellement de l’assurance',demo_2_meta:'Aujourd’hui à 16:30',demo_3:'Reprendre l’idée de boutique automatique',demo_3_meta:'Sauvegardée il y a deux mois',done:'Fait',snooze:'Reporter',not_todo:'Pas une autre todo-list.',not_todo_sub:'Une boîte à retardement intelligente pour les choses que vous ne pouvez pas traiter maintenant.',step1:'Capturez en quelques secondes',step1p:'Écrivez une relance, une idée ou une vérification sans créer un projet compliqué.',step2:'Choisissez la date et l’heure',step2p:'Resurface tient compte de votre fuseau horaire et de votre appareil.',step3:'Retrouvez au bon moment',step3p:'L’élément revient dans votre digest quand il devient utile.',uses_title:'Conçu pour les “plus tard” importants',uses_sub:'Les choses qui ne méritent pas votre attention maintenant, mais qui ne doivent pas être oubliées.',use1:'Relances',use1p:'Revenez vers un client, un propriétaire ou un contact au bon moment.',use2:'Abonnements',use2p:'Vérifiez un renouvellement avant qu’il ne vous coûte de l’argent.',use3:'Idées',use3p:'Laissez une idée mûrir, puis faites-la revenir quand vous serez prêt.',use4:'Vérifications',use4p:'Recontrôlez un prix, un dossier ou une opportunité à une date précise.',pricing_title:'Simple pour commencer. Puissant quand vous grandissez.',pricing_sub:'Choisissez votre devise. Les montants s’adaptent au pays et restent modifiables.',free:'Plan gratuit',forever:'pour toujours',free1:'10 éléments actifs',free2:'Date, heure et fuseau horaire',free3:'Catégories et répétitions',start_free:'Commencer gratuitement',per_month:'/ mois',pro1:'Éléments actifs illimités',pro2:'Digest quotidien par email',pro3:'Récurrences et organisation avancées',pro4:'Gestion de l’abonnement',cta_title:'Libérez votre esprit sans perdre ce qui compte.',cta_sub:'Capturez maintenant. Retrouvez au bon moment.',try_resurface:'Essayer Resurface',signature:'Capturez maintenant. Retrouvez au bon moment.',contact:'Contact',privacy:'Confidentialité',terms:'Conditions',logout:'Déconnexion',billing:'Gérer l’abonnement',settings:'Réglages',settings_sub:'Adaptez Resurface à votre pays, votre devise, votre heure et votre fuseau.',capture_label:'Qu’est-ce qui doit refaire surface ?',schedule:'Programmer',tomorrow:'Demain',next_week:'La semaine prochaine',two_weeks:'Dans deux semaines',one_month:'Dans un mois',choose_date:'Choisir une date',date:'Date',time:'Heure',category:'Catégorie',recurrence:'Répétition',every_days:'Tous les X jours',change:'Modifier',upgrade:'Passer en Premium →',today:'Aujourd’hui',upcoming:'À venir',completed:'Terminés',empty_today_title:'Rien ne doit refaire surface aujourd’hui.',empty_today:'Les éléments prévus aujourd’hui apparaîtront ici.',empty_upcoming_title:'Rien n’attend encore de refaire surface.',empty_upcoming:'Programmez votre première relance, idée ou vérification.',empty_done_title:'Aucun élément terminé pour le moment.',empty_done:'Les éléments traités apparaîtront ici.',edit:'Modifier',delete:'Supprimer',reopen:'Rouvrir',marked_done:'Élément marqué comme terminé',snoozed:'Élément reporté',deleted:'Élément supprimé',updated:'Élément mis à jour',saved:'C’est enregistré. Cet élément refera surface le',confirm_delete:'Supprimer définitivement cet élément ?',auth_sub:'Créez un compte pour synchroniser vos rappels sur tous vos appareils.',email:'Email',password:'Mot de passe — 8 caractères minimum',signup_title:'Commencez avec Resurface',login_title:'Bon retour',signup_btn:'Créer mon compte',login_btn:'Me connecter',switch_login:'Vous avez déjà un compte ?',switch_signup:'Vous n’avez pas de compte ?',switch_to_login:'Se connecter',switch_to_signup:'Créer un compte',premium_title:'Passez en Premium',premium_sub:'Ne limitez plus vos relances, idées et vérifications importantes.',currency:'Devise de paiement',currency_ready:'Cette devise est prête pour le paiement.',currency_preview:'Le prix est affiché, mais cette devise doit encore être configurée dans Stripe.',continue_payment:'Continuer vers le paiement',country:'Pays',country_help:'Utilisé pour adapter automatiquement la devise et les formats locaux.',currency_help:'Votre préférence est synchronisée avec votre compte.',timezone:'Fuseau horaire',digest_time:'Heure du digest',email_digest:'Digest par email',enabled:'Activé',disabled:'Désactivé',premium_digest_note:'Le digest email est envoyé aux utilisateurs Premium lorsque Resend est configuré.',use_device:'Utiliser les réglages de cet appareil',check_gps:'Vérifier ma position',save_settings:'Enregistrer les réglages',settings_saved:'Réglages enregistrés',gps_wait:'Demande de permission…',gps_denied:'Position indisponible ou permission refusée.',gps_local:'Coordonnées détectées sur cet appareil uniquement',timezone_hint:'Heure locale selon',device_tz:'Fuseau détecté sur cet appareil',snooze_title:'Reporter cet élément',snooze_sub:'Choisissez sa nouvelle date et sa nouvelle heure.',edit_title:'Modifier l’élément',save:'Enregistrer',no_category:'Aucune catégorie',cat_work:'Travail',cat_personal:'Personnel',cat_followup:'Relance',cat_money:'Argent',cat_subscription:'Abonnement',cat_admin:'Administratif',cat_health:'Santé',cat_family:'Famille',cat_home:'Maison',cat_idea:'Idée',cat_learning:'Apprentissage',cat_travel:'Voyage',cat_shopping:'Achats',cat_event:'Événement',cat_other:'Autre',cat_help_none:'Aucun classement : l’élément fonctionne normalement.',cat_help_work:'Tâches professionnelles et projets.',cat_help_personal:'Vie personnelle et objectifs privés.',cat_help_followup:'Personnes, clients ou dossiers à relancer.',cat_help_money:'Paiements, factures et finances.',cat_help_subscription:'Essais, renouvellements et résiliations.',cat_help_admin:'Documents, démarches et échéances.',cat_help_health:'Rendez-vous, traitements et suivi.',cat_help_family:'Famille et proches.',cat_help_home:'Maison, entretien et réparations.',cat_help_idea:'Idées à reprendre plus tard.',cat_help_learning:'Cours, lectures et compétences.',cat_help_travel:'Réservations, visas et préparation.',cat_help_shopping:'Produits à acheter ou prix à vérifier.',cat_help_event:'Anniversaires et dates importantes.',cat_help_other:'Tout ce qui ne rentre pas ailleurs.',once:'Une seule fois',daily:'Chaque jour',weekdays:'Chaque jour ouvrable',weekly:'Chaque semaine',biweekly:'Toutes les 2 semaines',monthly:'Chaque mois',bimonthly:'Tous les 2 mois',quarterly:'Tous les 3 mois',semiannual:'Tous les 6 mois',yearly:'Chaque année',custom_days:'Intervalle personnalisé',rec_help_once:'Revient une fois puis reste terminé.',rec_help_daily:'Crée automatiquement une occurrence chaque jour.',rec_help_weekdays:'Du lundi au vendredi, sans le week-end.',rec_help_weekly:'Revient le même jour chaque semaine.',rec_help_biweekly:'Revient toutes les deux semaines.',rec_help_monthly:'Revient chaque mois à la même date.',rec_help_bimonthly:'Revient tous les deux mois.',rec_help_quarterly:'Revient tous les trois mois.',rec_help_semiannual:'Revient tous les six mois.',rec_help_yearly:'Revient chaque année.',rec_help_custom:'Revient après le nombre exact de jours choisi.',privacy_title:'Politique de confidentialité',privacy_body:'Resurface stocke les informations nécessaires au fonctionnement du compte : email, rappels, préférences de langue, pays, devise et fuseau horaire. La position GPS précise n’est jamais enregistrée par l’application. Stripe et Resend peuvent traiter les données nécessaires au paiement ou à l’envoi des emails lorsqu’ils sont activés.',terms_title:'Conditions d’utilisation',terms_body:'Resurface est un outil d’organisation. Vous restez responsable de vérifier les échéances importantes. Les abonnements Premium sont renouvelés selon les conditions affichées au paiement et peuvent être gérés depuis le portail de facturation.'
+},
+en:{
+nav_how:'How it works',nav_uses:'Use cases',nav_pricing:'Pricing',login:'Log in',try_free:'Try for free',install:'Install',eyebrow:'Your memory for later',hero_title:'Never let important things disappear.',hero_sub:'Capture an idea, follow-up, or check in seconds. Resurface brings it back automatically at the right time.',first_reminder:'Create my first reminder',see_how:'See how it works',micro:'10 active items free. No card required.',digest_today:'Today in Resurface',demo_1:'Follow up with Sarah about the invoice',demo_1_meta:'Scheduled 14 days ago',demo_2:'Check the insurance renewal',demo_2_meta:'Today at 4:30 PM',demo_3:'Revisit the automated store idea',demo_3_meta:'Saved two months ago',done:'Done',snooze:'Snooze',not_todo:'Not another to-do list.',not_todo_sub:'An intelligent time capsule for things you cannot handle now.',step1:'Capture in seconds',step1p:'Write a follow-up, idea, or check without building a complicated project.',step2:'Choose date and time',step2p:'Resurface respects your device and timezone.',step3:'Find it at the right time',step3p:'The item returns in your digest when it becomes useful.',uses_title:'Built for important “laters”',uses_sub:'Things that do not need attention now but must not be forgotten.',use1:'Follow-ups',use1p:'Get back to a client, landlord, or contact at the right time.',use2:'Subscriptions',use2p:'Review a renewal before it costs you money.',use3:'Ideas',use3p:'Let an idea mature and bring it back when you are ready.',use4:'Checks',use4p:'Recheck a price, file, or opportunity on a precise date.',pricing_title:'Simple to start. Powerful as you grow.',pricing_sub:'Choose your currency. Amounts adapt to the country and remain editable.',free:'Free plan',forever:'forever',free1:'10 active items',free2:'Date, time, and timezone',free3:'Categories and repeats',start_free:'Start free',per_month:'/ month',pro1:'Unlimited active items',pro2:'Daily email digest',pro3:'Advanced repeats and organization',pro4:'Subscription management',cta_title:'Free your mind without losing what matters.',cta_sub:'Capture now. Find it at the right time.',try_resurface:'Try Resurface',signature:'Capture now. Find it at the right time.',contact:'Contact',privacy:'Privacy',terms:'Terms',logout:'Log out',billing:'Manage subscription',settings:'Settings',settings_sub:'Adapt Resurface to your country, currency, time, and timezone.',capture_label:'What should resurface?',schedule:'Schedule',tomorrow:'Tomorrow',next_week:'Next week',two_weeks:'In two weeks',one_month:'In one month',choose_date:'Choose a date',date:'Date',time:'Time',category:'Category',recurrence:'Repeat',every_days:'Every X days',change:'Change',upgrade:'Upgrade to Premium →',today:'Today',upcoming:'Upcoming',completed:'Completed',empty_today_title:'Nothing should resurface today.',empty_today:'Items due today will appear here.',empty_upcoming_title:'Nothing is waiting to resurface yet.',empty_upcoming:'Schedule your first follow-up, idea, or check.',empty_done_title:'No completed items yet.',empty_done:'Handled items will appear here.',edit:'Edit',delete:'Delete',reopen:'Reopen',marked_done:'Item marked complete',snoozed:'Item snoozed',deleted:'Item deleted',updated:'Item updated',saved:'Saved. This item will resurface on',confirm_delete:'Permanently delete this item?',auth_sub:'Create an account to sync reminders across devices.',email:'Email',password:'Password — at least 8 characters',signup_title:'Start with Resurface',login_title:'Welcome back',signup_btn:'Create my account',login_btn:'Log in',switch_login:'Already have an account?',switch_signup:'No account yet?',switch_to_login:'Log in',switch_to_signup:'Create account',premium_title:'Go Premium',premium_sub:'Remove limits from important follow-ups, ideas, and checks.',currency:'Payment currency',currency_ready:'This currency is ready for checkout.',currency_preview:'The price is displayed, but this currency still needs a Stripe price.',continue_payment:'Continue to payment',country:'Country',country_help:'Used to adapt currency and local formats automatically.',currency_help:'Your preference is synced with your account.',timezone:'Timezone',digest_time:'Digest time',email_digest:'Email digest',enabled:'Enabled',disabled:'Disabled',premium_digest_note:'Email digest is sent to Premium users when Resend is configured.',use_device:'Use this device settings',check_gps:'Check my location',save_settings:'Save settings',settings_saved:'Settings saved',gps_wait:'Requesting permission…',gps_denied:'Location unavailable or permission denied.',gps_local:'Coordinates detected only on this device',timezone_hint:'Local time in',device_tz:'Timezone detected on this device',snooze_title:'Snooze this item',snooze_sub:'Choose its new date and time.',edit_title:'Edit item',save:'Save',no_category:'No category',cat_work:'Work',cat_personal:'Personal',cat_followup:'Follow-up',cat_money:'Money',cat_subscription:'Subscription',cat_admin:'Admin',cat_health:'Health',cat_family:'Family',cat_home:'Home',cat_idea:'Idea',cat_learning:'Learning',cat_travel:'Travel',cat_shopping:'Shopping',cat_event:'Event',cat_other:'Other',cat_help_none:'No classification; the item works normally.',cat_help_work:'Professional tasks and projects.',cat_help_personal:'Private life and personal goals.',cat_help_followup:'People, clients, or files to follow up.',cat_help_money:'Payments, invoices, and finances.',cat_help_subscription:'Trials, renewals, and cancellations.',cat_help_admin:'Documents, forms, and deadlines.',cat_help_health:'Appointments, treatment, and follow-up.',cat_help_family:'Family and close relationships.',cat_help_home:'Home maintenance and repairs.',cat_help_idea:'Ideas to revisit later.',cat_help_learning:'Courses, reading, and skills.',cat_help_travel:'Bookings, visas, and preparation.',cat_help_shopping:'Products to buy or prices to check.',cat_help_event:'Birthdays and important dates.',cat_help_other:'Anything that does not fit elsewhere.',once:'One time',daily:'Every day',weekdays:'Every weekday',weekly:'Every week',biweekly:'Every 2 weeks',monthly:'Every month',bimonthly:'Every 2 months',quarterly:'Every 3 months',semiannual:'Every 6 months',yearly:'Every year',custom_days:'Custom interval',rec_help_once:'Returns once, then stays completed.',rec_help_daily:'Automatically creates one occurrence every day.',rec_help_weekdays:'Monday to Friday, skipping weekends.',rec_help_weekly:'Returns on the same weekday each week.',rec_help_biweekly:'Returns every two weeks.',rec_help_monthly:'Returns each month on the same date.',rec_help_bimonthly:'Returns every two months.',rec_help_quarterly:'Returns every three months.',rec_help_semiannual:'Returns every six months.',rec_help_yearly:'Returns every year.',rec_help_custom:'Returns after the exact number of days selected.',privacy_title:'Privacy policy',privacy_body:'Resurface stores the information required for your account: email, reminders, language, country, currency, and timezone preferences. Precise GPS coordinates are never stored. Stripe and Resend may process data required for payments or email delivery when enabled.',terms_title:'Terms of use',terms_body:'Resurface is an organization tool. You remain responsible for checking critical deadlines. Premium subscriptions renew according to the conditions shown at checkout and can be managed through the billing portal.'
+},
+es:{
+nav_how:'Cómo funciona',nav_uses:'Casos de uso',nav_pricing:'Precios',login:'Iniciar sesión',try_free:'Probar gratis',install:'Instalar',eyebrow:'Tu memoria para después',hero_title:'No dejes que las cosas importantes desaparezcan.',hero_sub:'Captura una idea, un seguimiento o una verificación en segundos. Resurface la devuelve automáticamente en el momento adecuado.',first_reminder:'Crear mi primer recordatorio',see_how:'Ver cómo funciona',micro:'10 elementos activos gratis. Sin tarjeta.',digest_today:'Hoy en Resurface',demo_1:'Contactar a Sarah por la factura',demo_1_meta:'Programado hace 14 días',demo_2:'Revisar la renovación del seguro',demo_2_meta:'Hoy a las 16:30',demo_3:'Retomar la idea de la tienda automática',demo_3_meta:'Guardada hace dos meses',done:'Hecho',snooze:'Posponer',not_todo:'No es otra lista de tareas.',not_todo_sub:'Una cápsula de tiempo inteligente para lo que no puedes resolver ahora.',step1:'Captura en segundos',step1p:'Escribe un seguimiento, idea o verificación sin crear un proyecto complejo.',step2:'Elige fecha y hora',step2p:'Resurface respeta tu dispositivo y zona horaria.',step3:'Recupéralo a tiempo',step3p:'El elemento vuelve cuando se vuelve útil.',uses_title:'Creado para los “después” importantes',uses_sub:'Cosas que no necesitan atención ahora, pero no deben olvidarse.',use1:'Seguimientos',use1p:'Vuelve a contactar a una persona en el momento adecuado.',use2:'Suscripciones',use2p:'Revisa una renovación antes de que cueste dinero.',use3:'Ideas',use3p:'Deja madurar una idea y recupérala después.',use4:'Verificaciones',use4p:'Revisa un precio, documento u oportunidad.',pricing_title:'Simple para empezar. Potente al crecer.',pricing_sub:'Elige la moneda y adapta el precio al país.',free:'Plan gratuito',forever:'para siempre',free1:'10 elementos activos',free2:'Fecha, hora y zona horaria',free3:'Categorías y repeticiones',start_free:'Empezar gratis',per_month:'/ mes',pro1:'Elementos ilimitados',pro2:'Resumen diario por email',pro3:'Repeticiones avanzadas',pro4:'Gestión de suscripción',cta_title:'Libera tu mente sin perder lo importante.',cta_sub:'Captura ahora. Recupéralo a tiempo.',try_resurface:'Probar Resurface',signature:'Captura ahora. Recupéralo a tiempo.',contact:'Contacto',privacy:'Privacidad',terms:'Condiciones',logout:'Cerrar sesión',billing:'Gestionar suscripción',settings:'Ajustes',settings_sub:'Adapta país, moneda, hora y zona horaria.',capture_label:'¿Qué debe volver a aparecer?',schedule:'Programar',tomorrow:'Mañana',next_week:'La próxima semana',two_weeks:'En dos semanas',one_month:'En un mes',choose_date:'Elegir fecha',date:'Fecha',time:'Hora',category:'Categoría',recurrence:'Repetición',every_days:'Cada X días',change:'Cambiar',upgrade:'Pasar a Premium →',today:'Hoy',upcoming:'Próximos',completed:'Terminados',empty_today_title:'Nada debe reaparecer hoy.',empty_today:'Los elementos de hoy aparecerán aquí.',empty_upcoming_title:'Nada espera todavía.',empty_upcoming:'Programa tu primer seguimiento, idea o verificación.',empty_done_title:'No hay elementos terminados.',empty_done:'Los elementos tratados aparecerán aquí.',edit:'Editar',delete:'Eliminar',reopen:'Reabrir',marked_done:'Elemento terminado',snoozed:'Elemento pospuesto',deleted:'Elemento eliminado',updated:'Elemento actualizado',saved:'Guardado. Volverá a aparecer el',confirm_delete:'¿Eliminar este elemento definitivamente?',auth_sub:'Crea una cuenta para sincronizar tus recordatorios.',email:'Email',password:'Contraseña — mínimo 8 caracteres',signup_title:'Empieza con Resurface',login_title:'Bienvenido de nuevo',signup_btn:'Crear mi cuenta',login_btn:'Entrar',switch_login:'¿Ya tienes cuenta?',switch_signup:'¿Aún no tienes cuenta?',switch_to_login:'Entrar',switch_to_signup:'Crear cuenta',premium_title:'Pásate a Premium',premium_sub:'Elimina los límites de tus elementos importantes.',currency:'Moneda de pago',currency_ready:'Esta moneda está lista para el pago.',currency_preview:'El precio se muestra, pero falta configurar Stripe.',continue_payment:'Continuar al pago',country:'País',country_help:'Sirve para adaptar moneda y formatos.',currency_help:'Tu preferencia se sincroniza.',timezone:'Zona horaria',digest_time:'Hora del resumen',email_digest:'Resumen por email',enabled:'Activado',disabled:'Desactivado',premium_digest_note:'Disponible para usuarios Premium con Resend configurado.',use_device:'Usar ajustes del dispositivo',check_gps:'Comprobar mi ubicación',save_settings:'Guardar ajustes',settings_saved:'Ajustes guardados',gps_wait:'Solicitando permiso…',gps_denied:'Ubicación no disponible.',gps_local:'Coordenadas detectadas solo en este dispositivo',timezone_hint:'Hora local en',device_tz:'Zona detectada',snooze_title:'Posponer elemento',snooze_sub:'Elige nueva fecha y hora.',edit_title:'Editar elemento',save:'Guardar',no_category:'Sin categoría',cat_work:'Trabajo',cat_personal:'Personal',cat_followup:'Seguimiento',cat_money:'Dinero',cat_subscription:'Suscripción',cat_admin:'Administrativo',cat_health:'Salud',cat_family:'Familia',cat_home:'Casa',cat_idea:'Idea',cat_learning:'Aprendizaje',cat_travel:'Viaje',cat_shopping:'Compras',cat_event:'Evento',cat_other:'Otro',cat_help_none:'Sin clasificación; funciona normalmente.',cat_help_work:'Tareas y proyectos profesionales.',cat_help_personal:'Vida y objetivos personales.',cat_help_followup:'Personas o expedientes a contactar.',cat_help_money:'Pagos, facturas y finanzas.',cat_help_subscription:'Pruebas, renovaciones y cancelaciones.',cat_help_admin:'Documentos y plazos.',cat_help_health:'Citas y seguimiento de salud.',cat_help_family:'Familia y personas cercanas.',cat_help_home:'Mantenimiento y reparaciones.',cat_help_idea:'Ideas para retomar después.',cat_help_learning:'Cursos, lecturas y habilidades.',cat_help_travel:'Reservas, visados y preparación.',cat_help_shopping:'Productos o precios a revisar.',cat_help_event:'Cumpleaños y fechas importantes.',cat_help_other:'Todo lo demás.',once:'Una sola vez',daily:'Cada día',weekdays:'Cada día laborable',weekly:'Cada semana',biweekly:'Cada 2 semanas',monthly:'Cada mes',bimonthly:'Cada 2 meses',quarterly:'Cada 3 meses',semiannual:'Cada 6 meses',yearly:'Cada año',custom_days:'Intervalo personalizado',rec_help_once:'Vuelve una vez y queda terminado.',rec_help_daily:'Crea una ocurrencia cada día.',rec_help_weekdays:'De lunes a viernes.',rec_help_weekly:'Vuelve cada semana.',rec_help_biweekly:'Vuelve cada dos semanas.',rec_help_monthly:'Vuelve cada mes.',rec_help_bimonthly:'Vuelve cada dos meses.',rec_help_quarterly:'Vuelve cada tres meses.',rec_help_semiannual:'Vuelve cada seis meses.',rec_help_yearly:'Vuelve cada año.',rec_help_custom:'Vuelve tras el número exacto de días.',privacy_title:'Política de privacidad',privacy_body:'Resurface guarda los datos necesarios para la cuenta. Las coordenadas GPS exactas nunca se guardan.',terms_title:'Condiciones de uso',terms_body:'Resurface es una herramienta de organización. El usuario sigue siendo responsable de las fechas críticas.'
+},
+pt:{
+nav_how:'Como funciona',nav_uses:'Casos de uso',nav_pricing:'Preços',login:'Entrar',try_free:'Testar grátis',install:'Instalar',eyebrow:'Sua memória para depois',hero_title:'Não deixe coisas importantes desaparecerem.',hero_sub:'Capture uma ideia, retorno ou verificação em segundos. O Resurface traz tudo de volta no momento certo.',first_reminder:'Criar meu primeiro lembrete',see_how:'Ver como funciona',micro:'10 itens ativos grátis. Sem cartão.',digest_today:'Hoje no Resurface',demo_1:'Falar com Sarah sobre a fatura',demo_1_meta:'Programado há 14 dias',demo_2:'Verificar a renovação do seguro',demo_2_meta:'Hoje às 16:30',demo_3:'Retomar a ideia da loja automática',demo_3_meta:'Salva há dois meses',done:'Feito',snooze:'Adiar',not_todo:'Não é outra lista de tarefas.',not_todo_sub:'Uma cápsula do tempo inteligente para o que você não pode resolver agora.',step1:'Capture em segundos',step1p:'Escreva um retorno, ideia ou verificação sem criar um projeto complexo.',step2:'Escolha data e hora',step2p:'O Resurface respeita seu dispositivo e fuso horário.',step3:'Encontre no momento certo',step3p:'O item volta quando se torna útil.',uses_title:'Feito para os “depois” importantes',uses_sub:'Coisas que não precisam de atenção agora, mas não podem ser esquecidas.',use1:'Retornos',use1p:'Volte a falar com alguém no momento certo.',use2:'Assinaturas',use2p:'Revise uma renovação antes que ela custe dinheiro.',use3:'Ideias',use3p:'Deixe uma ideia amadurecer e retome depois.',use4:'Verificações',use4p:'Revise um preço, documento ou oportunidade.',pricing_title:'Simples para começar. Forte para crescer.',pricing_sub:'Escolha a moeda e adapte o preço ao país.',free:'Plano grátis',forever:'para sempre',free1:'10 itens ativos',free2:'Data, hora e fuso horário',free3:'Categorias e repetições',start_free:'Começar grátis',per_month:'/ mês',pro1:'Itens ativos ilimitados',pro2:'Resumo diário por email',pro3:'Repetições avançadas',pro4:'Gestão da assinatura',cta_title:'Liberte sua mente sem perder o que importa.',cta_sub:'Capture agora. Encontre no momento certo.',try_resurface:'Testar Resurface',signature:'Capture agora. Encontre no momento certo.',contact:'Contato',privacy:'Privacidade',terms:'Termos',logout:'Sair',billing:'Gerenciar assinatura',settings:'Configurações',settings_sub:'Adapte país, moeda, hora e fuso.',capture_label:'O que deve voltar à superfície?',schedule:'Programar',tomorrow:'Amanhã',next_week:'Próxima semana',two_weeks:'Em duas semanas',one_month:'Em um mês',choose_date:'Escolher data',date:'Data',time:'Hora',category:'Categoria',recurrence:'Repetição',every_days:'A cada X dias',change:'Alterar',upgrade:'Virar Premium →',today:'Hoje',upcoming:'Próximos',completed:'Concluídos',empty_today_title:'Nada deve voltar hoje.',empty_today:'Os itens de hoje aparecerão aqui.',empty_upcoming_title:'Nada aguardando ainda.',empty_upcoming:'Programe seu primeiro retorno, ideia ou verificação.',empty_done_title:'Nenhum item concluído.',empty_done:'Os itens tratados aparecerão aqui.',edit:'Editar',delete:'Excluir',reopen:'Reabrir',marked_done:'Item concluído',snoozed:'Item adiado',deleted:'Item excluído',updated:'Item atualizado',saved:'Salvo. Este item voltará em',confirm_delete:'Excluir este item definitivamente?',auth_sub:'Crie uma conta para sincronizar seus lembretes.',email:'Email',password:'Senha — mínimo de 8 caracteres',signup_title:'Comece com Resurface',login_title:'Bem-vindo de volta',signup_btn:'Criar minha conta',login_btn:'Entrar',switch_login:'Já tem uma conta?',switch_signup:'Ainda não tem conta?',switch_to_login:'Entrar',switch_to_signup:'Criar conta',premium_title:'Vire Premium',premium_sub:'Remova limites dos seus itens importantes.',currency:'Moeda de pagamento',currency_ready:'Esta moeda está pronta para pagamento.',currency_preview:'O preço aparece, mas ainda falta configurar o Stripe.',continue_payment:'Continuar para pagamento',country:'País',country_help:'Usado para adaptar moeda e formatos.',currency_help:'Sua preferência é sincronizada.',timezone:'Fuso horário',digest_time:'Hora do resumo',email_digest:'Resumo por email',enabled:'Ativado',disabled:'Desativado',premium_digest_note:'Disponível para usuários Premium com Resend configurado.',use_device:'Usar ajustes do dispositivo',check_gps:'Verificar minha localização',save_settings:'Salvar configurações',settings_saved:'Configurações salvas',gps_wait:'Solicitando permissão…',gps_denied:'Localização indisponível.',gps_local:'Coordenadas detectadas apenas neste dispositivo',timezone_hint:'Hora local em',device_tz:'Fuso detectado',snooze_title:'Adiar item',snooze_sub:'Escolha nova data e hora.',edit_title:'Editar item',save:'Salvar',no_category:'Sem categoria',cat_work:'Trabalho',cat_personal:'Pessoal',cat_followup:'Retorno',cat_money:'Dinheiro',cat_subscription:'Assinatura',cat_admin:'Administrativo',cat_health:'Saúde',cat_family:'Família',cat_home:'Casa',cat_idea:'Ideia',cat_learning:'Aprendizado',cat_travel:'Viagem',cat_shopping:'Compras',cat_event:'Evento',cat_other:'Outro',cat_help_none:'Sem classificação; funciona normalmente.',cat_help_work:'Tarefas e projetos profissionais.',cat_help_personal:'Vida e objetivos pessoais.',cat_help_followup:'Pessoas ou processos para contatar.',cat_help_money:'Pagamentos, contas e finanças.',cat_help_subscription:'Testes, renovações e cancelamentos.',cat_help_admin:'Documentos e prazos.',cat_help_health:'Consultas e acompanhamento.',cat_help_family:'Família e pessoas próximas.',cat_help_home:'Manutenção e reparos.',cat_help_idea:'Ideias para retomar depois.',cat_help_learning:'Cursos, leituras e habilidades.',cat_help_travel:'Reservas, vistos e preparação.',cat_help_shopping:'Produtos ou preços para verificar.',cat_help_event:'Aniversários e datas importantes.',cat_help_other:'Tudo o que não entra nas outras categorias.',once:'Uma única vez',daily:'Todos os dias',weekdays:'Todos os dias úteis',weekly:'Toda semana',biweekly:'A cada 2 semanas',monthly:'Todo mês',bimonthly:'A cada 2 meses',quarterly:'A cada 3 meses',semiannual:'A cada 6 meses',yearly:'Todo ano',custom_days:'Intervalo personalizado',rec_help_once:'Volta uma vez e fica concluído.',rec_help_daily:'Cria uma ocorrência todos os dias.',rec_help_weekdays:'De segunda a sexta.',rec_help_weekly:'Volta toda semana.',rec_help_biweekly:'Volta a cada duas semanas.',rec_help_monthly:'Volta todo mês.',rec_help_bimonthly:'Volta a cada dois meses.',rec_help_quarterly:'Volta a cada três meses.',rec_help_semiannual:'Volta a cada seis meses.',rec_help_yearly:'Volta todo ano.',rec_help_custom:'Volta após o número exato de dias.',privacy_title:'Política de privacidade',privacy_body:'O Resurface guarda os dados necessários para a conta. As coordenadas GPS exatas nunca são armazenadas.',terms_title:'Termos de uso',terms_body:'O Resurface é uma ferramenta de organização. O usuário continua responsável pelos prazos críticos.'
+}}
+;
 
-Object.assign(I18N.fr, {
-  currency_pricing:'Devise et tarification locale', currency_pricing_sub:'Choisissez la devise que Resurface utilisera pour afficher les futurs prix. La bêta reste entièrement gratuite.', currency:'Devise préférée', currency_help:'Détectée depuis votre pays, mais toujours modifiable manuellement.', currency_auto:'Adaptation au pays', currency_auto_help:'Réapplique automatiquement la devise habituelle du pays sélectionné.', adapt_country:'Adapter la devise à mon pays', per_month:'/ mois', beta_stays_free:'Bêta actuelle : 100 % gratuite, aucun paiement.',
-  no_category_short:'garder cet élément sans classement', cat_followup:'Relance', cat_subscription:'Abonnement', cat_admin:'Administratif', cat_health:'Santé', cat_family:'Famille', cat_home:'Maison', cat_learning:'Apprentissage', cat_travel:'Voyage', cat_shopping:'Achats', cat_event:'Événement',
-  cat_help_none:'Aucun classement : l’élément reste simple et apparaît normalement.', cat_help_work:'Clients, travail, contrats et tâches professionnelles.', cat_help_personal:'Vie personnelle et choses à faire pour vous.', cat_help_money:'Paiements, factures, budget et échéances financières.', cat_help_idea:'Idées à reprendre plus tard sans les perdre.', cat_help_followup:'Personnes à recontacter, réponses ou suivis à effectuer.', cat_help_subscription:'Renouvellements, essais gratuits et abonnements à surveiller.', cat_help_admin:'Documents, démarches, assurances et formalités.', cat_help_health:'Rendez-vous, traitements et suivi de santé.', cat_help_family:'Famille, proches et engagements personnels.', cat_help_home:'Entretien, réparations et organisation du domicile.', cat_help_learning:'Cours, lectures et compétences à reprendre.', cat_help_travel:'Réservations, visas et préparatifs de voyage.', cat_help_shopping:'Produits à acheter ou prix à vérifier.', cat_help_event:'Anniversaires, événements et dates importantes.', cat_help_other:'Tout ce qui ne correspond pas aux autres catégories.',
-  one_time_detail:'Une seule fois — terminer définitivement après validation', weekdays:'Chaque jour ouvrable — du lundi au vendredi', bimonthly:'Tous les 2 mois', semiannual:'Tous les 6 mois', custom_days:'Intervalle personnalisé en jours', custom_interval:'Répéter tous les combien de jours ?', custom_interval_help:'Choisissez entre 1 et 3650 jours.', options_explainer:'La catégorie sert uniquement à organiser. La répétition recrée automatiquement une nouvelle occurrence lorsque vous marquez l’élément comme terminé.',
-  rec_help_once:'L’élément revient une seule fois puis reste terminé.', rec_help_daily:'Une nouvelle occurrence est créée chaque jour.', rec_help_weekdays:'Revient du lundi au vendredi et saute le week-end.', rec_help_weekly:'Revient le même jour chaque semaine.', rec_help_biweekly:'Revient toutes les deux semaines.', rec_help_monthly:'Revient à la même date chaque mois.', rec_help_bimonthly:'Revient tous les deux mois.', rec_help_quarterly:'Revient tous les trois mois.', rec_help_semiannual:'Revient tous les six mois.', rec_help_yearly:'Revient chaque année.', rec_help_custom:'Revient après le nombre exact de jours choisi.'
-});
-Object.assign(I18N.en, {
-  currency_pricing:'Currency and local pricing', currency_pricing_sub:'Choose the currency Resurface will use for future price displays. The beta remains completely free.', currency:'Preferred currency', currency_help:'Detected from your country, but always manually selectable.', currency_auto:'Match country', currency_auto_help:'Automatically reapplies the usual currency for the selected country.', adapt_country:'Match currency to my country', per_month:'/ month', beta_stays_free:'Current beta: 100% free, no payment.',
-  no_category_short:'keep this item unclassified', cat_followup:'Follow-up', cat_subscription:'Subscription', cat_admin:'Administrative', cat_health:'Health', cat_family:'Family', cat_home:'Home', cat_learning:'Learning', cat_travel:'Travel', cat_shopping:'Shopping', cat_event:'Event',
-  cat_help_none:'No classification: the item stays simple and still appears normally.', cat_help_work:'Clients, work, contracts, and professional tasks.', cat_help_personal:'Personal life and things to do for yourself.', cat_help_money:'Payments, bills, budgets, and financial deadlines.', cat_help_idea:'Ideas to revisit later without losing them.', cat_help_followup:'People to contact again, replies, and follow-ups.', cat_help_subscription:'Renewals, free trials, and subscriptions to monitor.', cat_help_admin:'Documents, paperwork, insurance, and formalities.', cat_help_health:'Appointments, treatments, and health follow-up.', cat_help_family:'Family, loved ones, and personal commitments.', cat_help_home:'Maintenance, repairs, and home organization.', cat_help_learning:'Courses, reading, and skills to revisit.', cat_help_travel:'Bookings, visas, and travel preparation.', cat_help_shopping:'Products to buy or prices to check.', cat_help_event:'Birthdays, events, and important dates.', cat_help_other:'Anything that does not fit another category.',
-  one_time_detail:'One time — finish permanently after completion', weekdays:'Every weekday — Monday through Friday', bimonthly:'Every 2 months', semiannual:'Every 6 months', custom_days:'Custom interval in days', custom_interval:'Repeat every how many days?', custom_interval_help:'Choose between 1 and 3650 days.', options_explainer:'Category is only for organization. Repetition automatically creates the next occurrence when you complete the current one.',
-  rec_help_once:'Returns once, then stays completed.', rec_help_daily:'A new occurrence is created every day.', rec_help_weekdays:'Returns Monday through Friday and skips weekends.', rec_help_weekly:'Returns on the same weekday every week.', rec_help_biweekly:'Returns every two weeks.', rec_help_monthly:'Returns on the same date every month.', rec_help_bimonthly:'Returns every two months.', rec_help_quarterly:'Returns every three months.', rec_help_semiannual:'Returns every six months.', rec_help_yearly:'Returns every year.', rec_help_custom:'Returns after the exact number of days you choose.'
-});
-Object.assign(I18N.es, {
-  currency_pricing:'Moneda y precio local', currency_pricing_sub:'Elige la moneda que Resurface usará para mostrar precios futuros. La beta sigue siendo totalmente gratuita.', currency:'Moneda preferida', currency_help:'Detectada por país, pero siempre se puede cambiar manualmente.', currency_auto:'Adaptar al país', currency_auto_help:'Vuelve a aplicar la moneda habitual del país seleccionado.', adapt_country:'Adaptar moneda a mi país', per_month:'/ mes', beta_stays_free:'Beta actual: 100 % gratuita, sin pagos.',
-  no_category_short:'mantener este elemento sin clasificar', cat_followup:'Seguimiento', cat_subscription:'Suscripción', cat_admin:'Administrativo', cat_health:'Salud', cat_family:'Familia', cat_home:'Hogar', cat_learning:'Aprendizaje', cat_travel:'Viaje', cat_shopping:'Compras', cat_event:'Evento',
-  cat_help_none:'Sin clasificación: el elemento sigue apareciendo normalmente.', cat_help_work:'Clientes, trabajo, contratos y tareas profesionales.', cat_help_personal:'Vida personal y cosas para ti.', cat_help_money:'Pagos, facturas, presupuesto y fechas financieras.', cat_help_idea:'Ideas para retomar después sin perderlas.', cat_help_followup:'Personas a contactar, respuestas y seguimientos.', cat_help_subscription:'Renovaciones, pruebas gratis y suscripciones.', cat_help_admin:'Documentos, trámites, seguros y formalidades.', cat_help_health:'Citas, tratamientos y seguimiento de salud.', cat_help_family:'Familia, seres queridos y compromisos.', cat_help_home:'Mantenimiento, reparaciones y organización del hogar.', cat_help_learning:'Cursos, lecturas y habilidades para retomar.', cat_help_travel:'Reservas, visados y preparación de viajes.', cat_help_shopping:'Productos que comprar o precios que revisar.', cat_help_event:'Cumpleaños, eventos y fechas importantes.', cat_help_other:'Todo lo que no encaje en otra categoría.',
-  one_time_detail:'Una sola vez — finalizar definitivamente al completar', weekdays:'Cada día laborable — de lunes a viernes', bimonthly:'Cada 2 meses', semiannual:'Cada 6 meses', custom_days:'Intervalo personalizado en días', custom_interval:'¿Repetir cada cuántos días?', custom_interval_help:'Elige entre 1 y 3650 días.', options_explainer:'La categoría solo organiza. La repetición crea automáticamente la siguiente ocurrencia al completar la actual.',
-  rec_help_once:'Vuelve una vez y después queda terminado.', rec_help_daily:'Se crea una nueva ocurrencia cada día.', rec_help_weekdays:'Vuelve de lunes a viernes y omite fines de semana.', rec_help_weekly:'Vuelve el mismo día cada semana.', rec_help_biweekly:'Vuelve cada dos semanas.', rec_help_monthly:'Vuelve en la misma fecha cada mes.', rec_help_bimonthly:'Vuelve cada dos meses.', rec_help_quarterly:'Vuelve cada tres meses.', rec_help_semiannual:'Vuelve cada seis meses.', rec_help_yearly:'Vuelve cada año.', rec_help_custom:'Vuelve tras el número exacto de días elegido.'
-});
-Object.assign(I18N.pt, {
-  currency_pricing:'Moeda e preço local', currency_pricing_sub:'Escolha a moeda usada pelo Resurface para mostrar preços futuros. A beta continua totalmente gratuita.', currency:'Moeda preferida', currency_help:'Detectada pelo país, mas sempre pode ser alterada manualmente.', currency_auto:'Adaptar ao país', currency_auto_help:'Reaplica automaticamente a moeda comum do país selecionado.', adapt_country:'Adaptar moeda ao meu país', per_month:'/ mês', beta_stays_free:'Beta atual: 100% gratuita, sem pagamento.',
-  no_category_short:'manter este item sem classificação', cat_followup:'Acompanhamento', cat_subscription:'Assinatura', cat_admin:'Administrativo', cat_health:'Saúde', cat_family:'Família', cat_home:'Casa', cat_learning:'Aprendizado', cat_travel:'Viagem', cat_shopping:'Compras', cat_event:'Evento',
-  cat_help_none:'Sem classificação: o item continua aparecendo normalmente.', cat_help_work:'Clientes, trabalho, contratos e tarefas profissionais.', cat_help_personal:'Vida pessoal e coisas para você.', cat_help_money:'Pagamentos, contas, orçamento e prazos financeiros.', cat_help_idea:'Ideias para retomar depois sem perder.', cat_help_followup:'Pessoas para contatar, respostas e acompanhamentos.', cat_help_subscription:'Renovações, testes grátis e assinaturas.', cat_help_admin:'Documentos, burocracia, seguros e formalidades.', cat_help_health:'Consultas, tratamentos e acompanhamento de saúde.', cat_help_family:'Família, pessoas próximas e compromissos.', cat_help_home:'Manutenção, reparos e organização da casa.', cat_help_learning:'Cursos, leituras e habilidades para retomar.', cat_help_travel:'Reservas, vistos e preparação de viagem.', cat_help_shopping:'Produtos para comprar ou preços para verificar.', cat_help_event:'Aniversários, eventos e datas importantes.', cat_help_other:'Tudo que não se encaixa em outra categoria.',
-  one_time_detail:'Uma vez — finalizar definitivamente após concluir', weekdays:'Cada dia útil — de segunda a sexta', bimonthly:'A cada 2 meses', semiannual:'A cada 6 meses', custom_days:'Intervalo personalizado em dias', custom_interval:'Repetir a cada quantos dias?', custom_interval_help:'Escolha entre 1 e 3650 dias.', options_explainer:'A categoria serve apenas para organizar. A repetição cria automaticamente a próxima ocorrência quando você conclui a atual.',
-  rec_help_once:'Volta uma vez e depois permanece concluído.', rec_help_daily:'Uma nova ocorrência é criada todos os dias.', rec_help_weekdays:'Volta de segunda a sexta e pula o fim de semana.', rec_help_weekly:'Volta no mesmo dia toda semana.', rec_help_biweekly:'Volta a cada duas semanas.', rec_help_monthly:'Volta na mesma data todo mês.', rec_help_bimonthly:'Volta a cada dois meses.', rec_help_quarterly:'Volta a cada três meses.', rec_help_semiannual:'Volta a cada seis meses.', rec_help_yearly:'Volta todos os anos.', rec_help_custom:'Volta após o número exato de dias escolhido.'
-});
+const CATEGORY_DEFS = [['','no_category','cat_help_none'],['work','cat_work','cat_help_work'],['personal','cat_personal','cat_help_personal'],['followup','cat_followup','cat_help_followup'],['money','cat_money','cat_help_money'],['subscription','cat_subscription','cat_help_subscription'],['admin','cat_admin','cat_help_admin'],['health','cat_health','cat_help_health'],['family','cat_family','cat_help_family'],['home','cat_home','cat_help_home'],['idea','cat_idea','cat_help_idea'],['learning','cat_learning','cat_help_learning'],['travel','cat_travel','cat_help_travel'],['shopping','cat_shopping','cat_help_shopping'],['event','cat_event','cat_help_event'],['other','cat_other','cat_help_other']];
+const RECURRENCE_DEFS = [['once','once','rec_help_once'],['daily','daily','rec_help_daily'],['weekdays','weekdays','rec_help_weekdays'],['weekly','weekly','rec_help_weekly'],['biweekly','biweekly','rec_help_biweekly'],['monthly','monthly','rec_help_monthly'],['bimonthly','bimonthly','rec_help_bimonthly'],['quarterly','quarterly','rec_help_quarterly'],['semiannual','semiannual','rec_help_semiannual'],['yearly','yearly','rec_help_yearly'],['custom_days','custom_days','rec_help_custom']];
 
-const CATEGORY_DEFS = [
-  ['', 'no_category', 'cat_help_none'], ['work','cat_work','cat_help_work'], ['personal','cat_personal','cat_help_personal'],
-  ['followup','cat_followup','cat_help_followup'], ['money','cat_money','cat_help_money'], ['subscription','cat_subscription','cat_help_subscription'],
-  ['admin','cat_admin','cat_help_admin'], ['health','cat_health','cat_help_health'], ['family','cat_family','cat_help_family'],
-  ['home','cat_home','cat_help_home'], ['idea','cat_idea','cat_help_idea'], ['learning','cat_learning','cat_help_learning'],
-  ['travel','cat_travel','cat_help_travel'], ['shopping','cat_shopping','cat_help_shopping'], ['event','cat_event','cat_help_event'], ['other','cat_other','cat_help_other'],
-];
-const RECURRENCE_DEFS = [
-  ['once','one_time_detail','rec_help_once'], ['daily','daily','rec_help_daily'], ['weekdays','weekdays','rec_help_weekdays'],
-  ['weekly','weekly','rec_help_weekly'], ['biweekly','biweekly','rec_help_biweekly'], ['monthly','monthly','rec_help_monthly'],
-  ['bimonthly','bimonthly','rec_help_bimonthly'], ['quarterly','quarterly','rec_help_quarterly'], ['semiannual','semiannual','rec_help_semiannual'],
-  ['yearly','yearly','rec_help_yearly'], ['custom_days','custom_days','rec_help_custom'],
-];
-
-const $ = selector => document.querySelector(selector);
-const $$ = selector => [...document.querySelectorAll(selector)];
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const state = {locale:getInitialLocale(),token:localStorage.getItem('resurface_token'),authMode:'signup',settings:null,config:{currencies:{}},items:{today:[],upcoming:[],done:[]},selectedDays:7,isPremium:false,snoozeId:null,editId:null,installPrompt:null};
 const tr = key => I18N[state.locale]?.[key] ?? I18N.en[key] ?? key;
 
-const state = {
-  locale: getInitialLocale(),
-  token: localStorage.getItem('resurface_token'),
-  authMode: 'signup',
-  settings: null,
-  items: { today: [], upcoming: [], done: [] },
-  selectedDays: 1,
-  snoozeId: null,
-  editId: null,
-  installPrompt: null,
-};
+function getInitialLocale(){const saved=localStorage.getItem('resurface_locale');if(SUPPORTED_LOCALES.includes(saved))return saved;const lang=(navigator.languages?.[0]||navigator.language||'fr').slice(0,2).toLowerCase();return SUPPORTED_LOCALES.includes(lang)?lang:'fr'}
+function deviceTimezone(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'}catch{return'UTC'}}
+function detectedCountry(){const lang=navigator.languages?.[0]||navigator.language||'';const region=lang.match(/[-_]([A-Za-z]{2})\b/)?.[1]?.toUpperCase();if(region)return region;const map={'America/New_York':'US','America/Chicago':'US','America/Denver':'US','America/Los_Angeles':'US','America/Sao_Paulo':'BR','America/Fortaleza':'BR','America/Manaus':'BR','Europe/Paris':'FR','Europe/London':'GB','America/Toronto':'CA','America/Vancouver':'CA','Africa/Porto-Novo':'BJ','Africa/Cotonou':'BJ','Europe/Madrid':'ES','Europe/Lisbon':'PT'};return map[deviceTimezone()]||null}
+function currencyForCountry(country){return COUNTRY_CURRENCY[country]||'EUR'}
+function currentCurrency(){return state.settings?.currency||currencyForCountry(state.settings?.country||detectedCountry())}
+function localDateKey(date=new Date(),timeZone=state.settings?.timezone||deviceTimezone()){const parts=new Intl.DateTimeFormat('en-CA',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);const p=Object.fromEntries(parts.filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));return`${p.year}-${p.month}-${p.day}`}
+function addDays(key,days){const d=new Date(`${key}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+Number(days));return d.toISOString().slice(0,10)}
+function formatDateTime(item){const due=new Date(item.resurfaceAtUtc||`${item.resurfaceAt}T09:00:00Z`);return new Intl.DateTimeFormat(state.locale,{timeZone:state.settings?.timezone||deviceTimezone(),day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(due)}
+function formatPrice(code){const amount=state.config.currencies?.[code]?.amount??FALLBACK_PRICES[code]??9;return new Intl.NumberFormat(state.locale,{style:'currency',currency:code,maximumFractionDigits:['JPY','XOF'].includes(code)?0:2}).format(amount)}
+function currencyName(code){try{return new Intl.DisplayNames([state.locale],{type:'currency'}).of(code)}catch{return code}}
+function openModal(id){$('#'+id).classList.add('open')}
+function closeModal(id){$('#'+id).classList.remove('open')}
+function toast(message){const el=$('#toast');el.textContent=message;el.classList.remove('hidden');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.add('hidden'),3000)}
+async function request(path,options={}){const headers={'Content-Type':'application/json',...(options.headers||{})};if(state.token)headers.Authorization=`Bearer ${state.token}`;let response;try{response=await fetch(API+path,{...options,headers})}catch{throw new Error(state.locale==='fr'?'Connexion impossible. Vérifiez votre réseau.':'Network unavailable.')};let data={};try{data=await response.json()}catch{}if(response.status===401&&state.token){localStorage.removeItem('resurface_token');state.token=null;showMarketing();openAuth('login')}if(!response.ok){const e=new Error(data.error||'Erreur');e.code=data.code;e.status=response.status;throw e}return data}
 
-function getInitialLocale() {
-  const stored = localStorage.getItem('resurface_locale');
-  if (SUPPORTED_LOCALES.includes(stored)) return stored;
-  const language = (navigator.languages?.[0] || navigator.language || 'fr').slice(0, 2).toLowerCase();
-  return SUPPORTED_LOCALES.includes(language) ? language : 'fr';
-}
-function deviceTimezone() {
-  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
-}
-function detectedCountry() {
-  const language = navigator.languages?.[0] || navigator.language || '';
-  const region = language.match(/[-_]([A-Za-z]{2})\b/)?.[1]?.toUpperCase();
-  if (region) return region;
-  const map = {
-    'America/New_York':'US','America/Chicago':'US','America/Denver':'US','America/Los_Angeles':'US',
-    'America/Sao_Paulo':'BR','America/Fortaleza':'BR','America/Manaus':'BR',
-    'Europe/Paris':'FR','Europe/London':'GB','America/Toronto':'CA','America/Vancouver':'CA',
-    'Africa/Porto-Novo':'BJ','Africa/Cotonou':'BJ','Europe/Madrid':'ES','Europe/Lisbon':'PT',
-  };
-  return map[deviceTimezone()] || null;
-}
-function currencyForCountry(country) { return COUNTRY_CURRENCY[country] || 'EUR'; }
-function detectedCurrency(country = detectedCountry()) { return currencyForCountry(country); }
-function currencyName(code) {
-  try { return new Intl.DisplayNames([state.locale], { type:'currency' }).of(code); } catch { return code; }
-}
-function localDateKey(date = new Date(), timeZone = state.settings?.timezone || deviceTimezone()) {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(date);
-  const p = Object.fromEntries(parts.filter(x => x.type !== 'literal').map(x => [x.type, x.value]));
-  return `${p.year}-${p.month}-${p.day}`;
-}
-function addDays(dateKey, days) {
-  const d = new Date(`${dateKey}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + Number(days));
-  return d.toISOString().slice(0, 10);
-}
-function formatSchedule(item) {
-  const due = new Date(item.resurfaceAtUtc);
-  return new Intl.DateTimeFormat(state.locale, {
-    timeZone: state.settings?.timezone || deviceTimezone(),
-    weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit',
-  }).format(due);
-}
-function escapeText(value) { return String(value ?? ''); }
+function fillCurrencies(){const html=CURRENCIES.map(code=>`<option value="${code}">${code} — ${currencyName(code)}</option>`).join('');['#marketingCurrency','#currency','#settingsCurrency'].forEach(sel=>{const el=$(sel);if(!el)return;const value=el.value||currentCurrency();el.innerHTML=html;el.value=CURRENCIES.includes(value)?value:'EUR'})}
+function fillCountries(){const el=$('#country');const current=state.settings?.country||detectedCountry()||'';el.innerHTML='<option value="">—</option>'+COUNTRY_OPTIONS.map(([c,n])=>`<option value="${c}">${n}</option>`).join('');el.value=current}
+function fillTimezones(){const el=$('#timezone');let zones;try{zones=Intl.supportedValuesOf('timeZone')}catch{zones=['UTC','America/New_York','America/Sao_Paulo','Europe/Paris','Europe/London','Africa/Porto-Novo']};const current=state.settings?.timezone||deviceTimezone();if(!zones.includes(current))zones=[current,...zones];el.innerHTML=zones.map(z=>`<option value="${z}">${z.replaceAll('_',' ')}</option>`).join('');el.value=current;$('#deviceTimezone').textContent=`${tr('device_tz')}: ${deviceTimezone()}`}
+function fillCategorySelect(id,value=''){const el=$(id);el.innerHTML=CATEGORY_DEFS.map(([v,k])=>`<option value="${v}">${tr(k)}</option>`).join('');el.value=CATEGORY_DEFS.some(([v])=>v===value)?value:'';updateCategoryHelp(id)}
+function updateCategoryHelp(id){const el=$(id);const def=CATEGORY_DEFS.find(([v])=>v===el.value)||CATEGORY_DEFS[0];const target=id==='#category'?'#categoryHelp':'#editCategoryHelp';$(target).textContent=tr(def[2])}
+function fillRecurrenceSelect(id,value='once'){const el=$(id);el.innerHTML=RECURRENCE_DEFS.map(([v,k])=>`<option value="${v}">${tr(k)}</option>`).join('');el.value=RECURRENCE_DEFS.some(([v])=>v===value)?value:'once';updateRecurrenceHelp(id)}
+function updateRecurrenceHelp(id){const el=$(id);const def=RECURRENCE_DEFS.find(([v])=>v===el.value)||RECURRENCE_DEFS[0];const edit=id==='#editRecurring';$(edit?'#editRecurrenceHelp':'#recurrenceHelp').textContent=tr(def[2]);$(edit?'#editRecurrenceIntervalWrap':'#recurrenceIntervalWrap').classList.toggle('hidden',el.value!=='custom_days')}
+function updatePrices(code=currentCurrency()){const price=`${formatPrice(code)} <small>${tr('per_month')}</small>`;$('#marketingPrice').innerHTML=price;$('#modalPrice').innerHTML=price;const ready=Boolean(state.config.currencies?.[code]?.checkoutEnabled);$('#currencyAvailability').textContent=tr(ready?'currency_ready':'currency_preview');$('#currencyAvailability').className='availability '+(ready?'available':'unavailable');$('#checkout').disabled=!ready;$('#checkout').title=ready?'':tr('currency_preview')}
+function applyI18n(){document.documentElement.lang=state.locale;$$('[data-i18n]').forEach(el=>el.textContent=tr(el.dataset.i18n));$$('.locale-select').forEach(el=>el.value=state.locale);$('#itemText').placeholder=state.locale==='fr'?'Exemple : Relancer David dans deux semaines':'Example: Follow up with David in two weeks';fillCurrencies();fillCategorySelect('#category',$('#category')?.value||'');fillRecurrenceSelect('#recurring',$('#recurring')?.value||'once');if($('#editCategory').options.length)fillCategorySelect('#editCategory',$('#editCategory').value);if($('#editRecurring').options.length)fillRecurrenceSelect('#editRecurring',$('#editRecurring').value);updateAuthText();updatePrices($('#currency').value||currentCurrency());updateTimezoneHint();renderItems()}
+function updateAuthText(){$('#authTitle').textContent=tr(state.authMode==='signup'?'signup_title':'login_title');$('#authSubmit').textContent=tr(state.authMode==='signup'?'signup_btn':'login_btn');$('#switchText').textContent=tr(state.authMode==='signup'?'switch_login':'switch_signup');$('#switchMode').textContent=tr(state.authMode==='signup'?'switch_to_login':'switch_to_signup');$('#password').autocomplete=state.authMode==='signup'?'new-password':'current-password'}
+function openAuth(mode='signup'){state.authMode=mode;$('#authError').textContent='';updateAuthText();openModal('authOverlay')}
+function showMarketing(){$('#marketing').classList.remove('hidden');$('#appShell').classList.add('hidden')}
+function showApp(){$('#marketing').classList.add('hidden');$('#appShell').classList.remove('hidden');window.scrollTo(0,0)}
+function updateTimezoneHint(){$('#timezoneHint').textContent=`${tr('timezone_hint')} ${state.settings?.timezone||deviceTimezone()}`}
+function setQuickDate(days){state.selectedDays=days;$$('.quick[data-days]').forEach(b=>b.classList.toggle('active',b.dataset.days===String(days)));if(days!=='custom')$('#customDate').value=addDays(localDateKey(),Number(days));$('#customDate').focus({preventScroll:true})}
 
-function applyI18n() {
-  document.documentElement.lang = state.locale;
-  $$('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
-  $('#authLanguage').value = state.locale;
-  $('#appLanguage').value = state.locale;
-  $('#authTitle').textContent = state.authMode === 'signup' ? tr('signup_title') : tr('login_title');
-  $('#authSubmit').textContent = state.authMode === 'signup' ? tr('signup_btn') : tr('login_btn');
-  $('#password').autocomplete = state.authMode === 'signup' ? 'new-password' : 'current-password';
-  $('#itemText').placeholder = state.locale === 'fr' ? 'Exemple : Relancer David au sujet du contrat' : 'Example: Follow up with David about the contract';
-  fillCategorySelects();
-  fillRecurrenceSelects();
-  fillCurrencySelect();
-  updateChoiceHelp('category'); updateChoiceHelp('editCategory');
-  updateRecurrenceUI('recurring'); updateRecurrenceUI('editRecurring');
-  renderCurrencyPreview();
-  renderDigestStatus();
-  renderTodaySubtitle();
-  updateTimezoneHint();
-  renderItems();
-}
+async function loadConfig(){try{state.config=await request('/config')}catch{state.config={currencies:Object.fromEntries(CURRENCIES.map(c=>[c,{amount:FALLBACK_PRICES[c],checkoutEnabled:false}]))}}fillCurrencies();updatePrices(currentCurrency())}
+async function loadMe(){const me=await request('/me');state.settings=me;state.isPremium=Boolean(me.isPremium);fillSettings();refreshPlan()}
+function refreshPlan(){const badge=$('#planBadge');badge.textContent=state.isPremium?'★ Premium':tr('free');$('#billingBtn').classList.toggle('hidden',!state.isPremium);$('#upgradeBtn').classList.toggle('hidden',state.isPremium)}
+function fillSettings(){fillCountries();fillCurrencies();$('#settingsCurrency').value=currentCurrency();fillTimezones();$('#digestTime').value=state.settings?.digestTime||'08:00';$('#digestEnabled').value=String(Boolean(state.settings?.digestEnabled));updateTimezoneHint()}
 
-function fillCategorySelects() {
-  ['#category','#editCategory'].forEach(id => {
-    const select = $(id); if (!select) return;
-    const value = select.value;
-    select.innerHTML = CATEGORY_DEFS.map(([v, labelKey, helpKey]) => {
-      const label = v === '' ? `${tr(labelKey)} — ${tr('no_category_short')}` : `${tr(labelKey)} — ${tr(helpKey)}`;
-      return `<option value="${v}">${label}</option>`;
-    }).join('');
-    if (CATEGORY_DEFS.some(([v]) => v === value)) select.value = value;
-  });
-}
-function fillRecurrenceSelects() {
-  ['#recurring','#editRecurring'].forEach(id => {
-    const select = $(id); if (!select) return;
-    const value = select.value || 'once';
-    select.innerHTML = RECURRENCE_DEFS.map(([v,labelKey]) => `<option value="${v}">${tr(labelKey)}</option>`).join('');
-    select.value = RECURRENCE_DEFS.some(([v]) => v === value) ? value : 'once';
-  });
-}
-function updateChoiceHelp(selectId) {
-  const select = $(`#${selectId}`); if (!select) return;
-  const def = CATEGORY_DEFS.find(([value]) => value === select.value) || CATEGORY_DEFS[0];
-  const help = $(`#${selectId === 'category' ? 'categoryHelp' : 'editCategoryHelp'}`);
-  if (help) help.textContent = tr(def[2]);
-}
-function updateRecurrenceUI(selectId) {
-  const select = $(`#${selectId}`); if (!select) return;
-  const isEdit = selectId === 'editRecurring';
-  const def = RECURRENCE_DEFS.find(([value]) => value === select.value) || RECURRENCE_DEFS[0];
-  const help = $(`#${isEdit ? 'editRecurrenceHelp' : 'recurrenceHelp'}`);
-  const wrap = $(`#${isEdit ? 'editCustomRecurrenceWrap' : 'customRecurrenceWrap'}`);
-  if (help) help.textContent = tr(def[2]);
-  if (wrap) wrap.classList.toggle('hidden', select.value !== 'custom_days');
-}
-function fillCurrencySelect() {
-  const select = $('#currency'); if (!select) return;
-  const current = state.settings?.currency || detectedCurrency(state.settings?.country || detectedCountry());
-  select.innerHTML = CURRENCY_OPTIONS.map(code => `<option value="${code}">${code} — ${currencyName(code)}</option>`).join('');
-  select.value = CURRENCY_OPTIONS.includes(current) ? current : 'EUR';
-}
-function renderCurrencyPreview() {
-  const currency = state.settings?.currency || $('#currency')?.value || detectedCurrency();
-  const amount = CURRENCY_PRICES[currency] ?? CURRENCY_PRICES.EUR;
-  const formatted = new Intl.NumberFormat(state.locale, { style:'currency', currency, maximumFractionDigits: currency === 'JPY' || currency === 'XOF' ? 0 : 2 }).format(amount);
-  const el = $('#pricePreviewAmount'); if (el) el.textContent = formatted;
-}
-function fillCountries() {
-  const select = $('#country');
-  const current = state.settings?.country || '';
-  select.innerHTML = `<option value="">—</option>` + COUNTRY_OPTIONS.map(([code, name]) => `<option value="${code === 'OTHER' ? '' : code}">${name}</option>`).join('');
-  select.value = current;
-}
-function fillTimezones() {
-  const select = $('#timezone');
-  let zones;
-  try { zones = Intl.supportedValuesOf('timeZone'); } catch { zones = ['UTC','America/New_York','America/Sao_Paulo','Europe/Paris','Europe/London','Africa/Porto-Novo']; }
-  const current = state.settings?.timezone || deviceTimezone();
-  if (!zones.includes(current)) zones = [current, ...zones];
-  select.innerHTML = zones.map(zone => `<option value="${zone}">${zone.replaceAll('_',' ')}</option>`).join('');
-  select.value = current;
-  $('#deviceTimezone').textContent = `${tr('device_tz')}: ${deviceTimezone()}`;
-}
-function renderDigestStatus() {
-  const el = $('#digestStatus');
-  if (!el || !state.settings) return;
-  el.textContent = state.settings.digestEnabled ? tr('enabled') : tr('disabled');
-}
-function renderTodaySubtitle() {
-  const el = $('#todaySubtitle');
-  if (!el) return;
-  const zone = state.settings?.timezone || deviceTimezone();
-  el.textContent = new Intl.DateTimeFormat(state.locale, { timeZone:zone, weekday:'long', day:'numeric', month:'long', year:'numeric' }).format(new Date());
-}
-function updateTimezoneHint() {
-  const el = $('#timezoneHint');
-  if (el) el.textContent = `${tr('timezone_hint')} ${state.settings?.timezone || deviceTimezone()}`;
-}
+$('#authForm').addEventListener('submit',async e=>{e.preventDefault();const button=$('#authSubmit');button.disabled=true;$('#authError').textContent='';const country=detectedCountry();const payload={email:$('#email').value,password:$('#password').value,locale:state.locale,timezone:deviceTimezone(),country,currency:currencyForCountry(country)};try{const data=await request(state.authMode==='signup'?'/signup':'/login',{method:'POST',body:JSON.stringify(payload)});state.token=data.token;localStorage.setItem('resurface_token',data.token);state.settings=data;state.isPremium=Boolean(data.isPremium);closeModal('authOverlay');showApp();fillSettings();refreshPlan();await loadItems()}catch(err){$('#authError').textContent=err.message}finally{button.disabled=false}});
+$('#switchMode').onclick=()=>{state.authMode=state.authMode==='signup'?'login':'signup';updateAuthText()};
+['#loginTop'].forEach(sel=>$(sel).onclick=()=>openAuth('login'));['#startTop','#heroStart','#freeStart','#proStart','#ctaStart'].forEach(sel=>$(sel).onclick=()=>openAuth('signup'));
+$('#brandHome').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
 
-async function request(path, options = {}) {
-  try {
-    const response = await fetch(API + path, {
-      ...options,
-      headers: {
-        'Content-Type':'application/json',
-        ...(state.token ? { Authorization:`Bearer ${state.token}` } : {}),
-        ...(options.headers || {}),
-      },
-    });
-    let data = {};
-    try { data = await response.json(); } catch {}
-    if (response.status === 401 && state.token) {
-      await localLogout(false);
-      throw new Error(tr('session_expired'));
-    }
-    if (!response.ok) {
-      const error = new Error(data.error || tr('generic_error'));
-      error.code = data.code;
-      throw error;
-    }
-    return data;
-  } catch (error) {
-    if (error instanceof TypeError) throw new Error(tr('network_error'));
-    throw error;
-  }
-}
+$$('.locale-select').forEach(el=>el.onchange=async e=>{state.locale=e.target.value;localStorage.setItem('resurface_locale',state.locale);applyI18n();if(state.token)try{state.settings=await request('/me',{method:'PATCH',body:JSON.stringify({locale:state.locale})})}catch{}});
+$$('[data-close]').forEach(btn=>btn.onclick=()=>closeModal(btn.dataset.close));$$('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open')}));document.addEventListener('keydown',e=>{if(e.key==='Escape')$$('.overlay.open').forEach(x=>x.classList.remove('open'))});
 
-function setAuthMode(mode) {
-  state.authMode = mode;
-  $('#signupTab').classList.toggle('active', mode === 'signup');
-  $('#loginTab').classList.toggle('active', mode === 'login');
-  $('#authError').textContent = '';
-  applyI18n();
-}
-$('#signupTab').addEventListener('click', () => setAuthMode('signup'));
-$('#loginTab').addEventListener('click', () => setAuthMode('login'));
-$('#authForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const button = $('#authSubmit');
-  button.disabled = true;
-  $('#authError').textContent = '';
-  try {
-    const payload = { email: $('#email').value.trim(), password: $('#password').value, locale: state.locale };
-    const country = detectedCountry();
-    if (state.authMode === 'signup' || (localStorage.getItem('resurface_timezone_mode') || 'auto') === 'auto') payload.timezone = deviceTimezone();
-    if (state.authMode === 'signup' || (localStorage.getItem('resurface_country_mode') || 'auto') === 'auto') payload.country = country;
-    if (state.authMode === 'signup' || (localStorage.getItem('resurface_currency_mode') || 'auto') === 'auto') payload.currency = detectedCurrency(country);
-    const data = await request(state.authMode === 'signup' ? '/signup' : '/login', { method:'POST', body:JSON.stringify(payload) });
-    state.token = data.token;
-    localStorage.setItem('resurface_token', state.token);
-    state.settings = data;
-    await openApp();
-  } catch (error) { $('#authError').textContent = error.message; }
-  finally { button.disabled = false; }
-});
+$$('.quick[data-days]').forEach(btn=>btn.onclick=()=>setQuickDate(btn.dataset.days));
+$('#customDate').onchange=()=>{state.selectedDays='custom';$$('.quick[data-days]').forEach(b=>b.classList.toggle('active',b.dataset.days==='custom'))};
+$('#category').onchange=()=>updateCategoryHelp('#category');$('#recurring').onchange=()=>updateRecurrenceHelp('#recurring');$('#editCategory').onchange=()=>updateCategoryHelp('#editCategory');$('#editRecurring').onchange=()=>updateRecurrenceHelp('#editRecurring');
+$('#addBtn').onclick=addItem;$('#itemText').onkeydown=e=>{if(e.key==='Enter')addItem()};
+async function addItem(){const text=$('#itemText').value.trim();if(!text)return $('#itemText').focus();const date=$('#customDate').value;const time=$('#customTime').value||'09:00';if(!date)return $('#customDate').focus();const btn=$('#addBtn');btn.disabled=true;try{await request('/items',{method:'POST',body:JSON.stringify({text,resurfaceDate:date,resurfaceTime:time,timezone:state.settings?.timezone||deviceTimezone(),category:$('#category').value,recurrenceType:$('#recurring').value,recurrenceInterval:Number($('#recurrenceInterval').value||1)})});$('#itemText').value='';toast(`${tr('saved')} ${new Intl.DateTimeFormat(state.locale,{dateStyle:'long'}).format(new Date(date+'T12:00:00'))} ${time}`);await loadItems()}catch(err){if(err.code==='LIMIT_REACHED')openPremium();else toast(err.message)}finally{btn.disabled=false}}
 
-async function openApp() {
-  $('#authScreen').classList.add('hidden');
-  $('#appShell').classList.remove('hidden');
-  try {
-    state.settings = await request('/me');
-    const patch = {};
-    const detectedZone = deviceTimezone();
-    const detectedNation = detectedCountry() || state.settings.country;
-    const detectedMoney = detectedCurrency(detectedNation);
-    if ((localStorage.getItem('resurface_timezone_mode') || 'auto') === 'auto' && state.settings.timezone !== detectedZone) patch.timezone = detectedZone;
-    if ((localStorage.getItem('resurface_country_mode') || 'auto') === 'auto' && detectedNation && state.settings.country !== detectedNation) patch.country = detectedNation;
-    if ((localStorage.getItem('resurface_currency_mode') || 'auto') === 'auto' && state.settings.currency !== detectedMoney) patch.currency = detectedMoney;
-    if (Object.keys(patch).length) state.settings = await request('/me', { method:'PATCH', body:JSON.stringify(patch) });
-    $('#accountEmail').textContent = state.settings.email;
-    $('#profileButton').textContent = state.settings.email?.[0]?.toUpperCase() || 'R';
-    fillTimezones(); fillCountries(); fillCurrencySelect(); renderCurrencyPreview();
-    $('#digestTime').value = state.settings.digestTime || '08:00';
-    $('#digestEnabled').checked = !!state.settings.digestEnabled;
-    applyI18n();
-    await loadItems();
-    switchView('today');
-  } catch (error) { showToast(error.message); }
-}
-async function localLogout(callServer = true) {
-  if (callServer && state.token) { try { await request('/logout', { method:'POST' }); } catch {} }
-  state.token = null; state.settings = null;
-  localStorage.removeItem('resurface_token');
-  $('#appShell').classList.add('hidden');
-  $('#authScreen').classList.remove('hidden');
-  setAuthMode('login');
-}
-$('#logout').addEventListener('click', () => localLogout(true));
+function emptyHtml(context){const title=tr(context==='today'?'empty_today_title':context==='upcoming'?'empty_upcoming_title':'empty_done_title');const text=tr(context==='today'?'empty_today':context==='upcoming'?'empty_upcoming':'empty_done');return `<div class="empty"><strong>${title}</strong>${text}</div>`}
+function categoryLabel(value){return tr(CATEGORY_DEFS.find(([v])=>v===value)?.[1]||'no_category')}
+function recurrenceLabel(value){return tr(RECURRENCE_DEFS.find(([v])=>v===value)?.[1]||'once')}
+function itemElement(item,context){const el=document.createElement('article');el.className='item '+(item.status==='done'?'done':'');const check=document.createElement('button');check.className='check';check.setAttribute('aria-label',context==='done'?tr('reopen'):tr('done'));check.onclick=async()=>{try{await request('/items/'+item.id,{method:'PATCH',body:JSON.stringify({action:context==='done'?'reopen':'done',timezone:state.settings.timezone})});toast(tr('marked_done'));loadItems()}catch(err){toast(err.message)}};const body=document.createElement('div');body.className='item-body';const text=document.createElement('div');text.className='item-text';text.textContent=item.text;const meta=document.createElement('div');meta.className='item-meta';meta.textContent=`${formatDateTime(item)}${item.category?' · '+categoryLabel(item.category):''}${item.recurrenceType&&item.recurrenceType!=='once'?' · ↻ '+recurrenceLabel(item.recurrenceType):''}`;body.append(text,meta);const actions=document.createElement('div');actions.className='item-actions';if(context!=='done'){const snooze=document.createElement('button');snooze.textContent=tr('snooze');snooze.onclick=()=>openSnooze(item);const edit=document.createElement('button');edit.textContent=tr('edit');edit.onclick=()=>openEdit(item);actions.append(snooze,edit)}const del=document.createElement('button');del.textContent='×';del.title=tr('delete');del.onclick=async()=>{if(!confirm(tr('confirm_delete')))return;try{await request('/items/'+item.id,{method:'DELETE'});toast(tr('deleted'));loadItems()}catch(err){toast(err.message)}};actions.append(del);el.append(check,body,actions);return el}
+function renderList(container,count,items,context){$(count).textContent=items.length;const box=$(container);box.innerHTML='';if(!items.length)box.innerHTML=emptyHtml(context);else items.forEach(item=>box.append(itemElement(item,context)))}
+function renderItems(){if(!state.items)return;renderList('#todayList','#todayCount',state.items.today||[],'today');renderList('#upcomingList','#upcomingCount',state.items.upcoming||[],'upcoming');renderList('#doneList','#doneCount',state.items.done||[],'done')}
+async function loadItems(){try{const data=await request('/items');state.items=data;state.settings=data.settings||state.settings;state.isPremium=Boolean(data.isPremium);refreshPlan();fillSettings();renderItems();const active=data.today.length+data.upcoming.length;$('#usage').textContent=state.isPremium?`${active} ${state.locale==='fr'?'rappels actifs — illimités':'active items — unlimited'}`:`${active} / ${data.freeLimit} ${state.locale==='fr'?'rappels actifs':'active items'}`}catch(err){toast(err.message)}}
 
-function switchView(view) {
-  $$('.view').forEach(el => el.classList.add('hidden'));
-  $(`#${view}View`).classList.remove('hidden');
-  $$('.nav-btn[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
-  window.scrollTo({ top:0, behavior:'smooth' });
-}
-$$('.nav-btn[data-view]').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
-$('#profileButton').addEventListener('click', () => switchView('settings'));
+function openSnooze(item){state.snoozeId=item.id;$('#snoozeDate').value=item.resurfaceDate;$('#snoozeTime').value=item.resurfaceTime||'09:00';openModal('snoozeOverlay')}
+$('#snoozeForm').onsubmit=async e=>{e.preventDefault();try{await request('/items/'+state.snoozeId,{method:'PATCH',body:JSON.stringify({action:'snooze',resurfaceDate:$('#snoozeDate').value,resurfaceTime:$('#snoozeTime').value,timezone:state.settings.timezone})});closeModal('snoozeOverlay');toast(tr('snoozed'));loadItems()}catch(err){toast(err.message)}};
+function openEdit(item){state.editId=item.id;$('#editText').value=item.text;$('#editDate').value=item.resurfaceDate;$('#editTime').value=item.resurfaceTime||'09:00';fillCategorySelect('#editCategory',item.category||'');fillRecurrenceSelect('#editRecurring',item.recurrenceType||'once');$('#editRecurrenceInterval').value=item.recurrenceInterval||1;openModal('editOverlay')}
+$('#editForm').onsubmit=async e=>{e.preventDefault();try{await request('/items/'+state.editId,{method:'PATCH',body:JSON.stringify({action:'update',text:$('#editText').value,resurfaceDate:$('#editDate').value,resurfaceTime:$('#editTime').value,timezone:state.settings.timezone,category:$('#editCategory').value,recurrenceType:$('#editRecurring').value,recurrenceInterval:Number($('#editRecurrenceInterval').value||1)})});closeModal('editOverlay');toast(tr('updated'));loadItems()}catch(err){toast(err.message)}};
 
-function openOverlay(id) { $(id).classList.add('open'); }
-function closeOverlay(id) { $(id).classList.remove('open'); }
-$$('[data-close]').forEach(btn => btn.addEventListener('click', () => closeOverlay(`#${btn.dataset.close}`)));
-$$('.overlay').forEach(overlay => overlay.addEventListener('click', event => { if (event.target === overlay) overlay.classList.remove('open'); }));
-document.addEventListener('keydown', event => { if (event.key === 'Escape') $$('.overlay.open').forEach(el => el.classList.remove('open')); });
+function openPremium(){const code=currentCurrency();fillCurrencies();$('#currency').value=code;updatePrices(code);$('#payError').textContent='';openModal('payOverlay')}
+$('#upgradeBtn').onclick=openPremium;$('#marketingCurrency').onchange=e=>{updatePrices(e.target.value);$('#currency').value=e.target.value};$('#currency').onchange=e=>updatePrices(e.target.value);
+$('#checkout').onclick=async()=>{const code=$('#currency').value;const btn=$('#checkout');btn.disabled=true;$('#payError').textContent='';try{const data=await request('/stripe/create-checkout-session',{method:'POST',body:JSON.stringify({currency:code})});location.href=data.url}catch(err){$('#payError').textContent=err.message;updatePrices(code)}finally{if(state.config.currencies?.[code]?.checkoutEnabled)btn.disabled=false}};
+$('#billingBtn').onclick=async()=>{try{const data=await request('/stripe/create-portal-session',{method:'POST'});location.href=data.url}catch(err){toast(err.message)}};
 
-function setQuickDate(days, selector = '.quick-dates .quick') {
-  const zone = state.settings?.timezone || deviceTimezone();
-  const today = localDateKey(new Date(), zone);
-  const date = days === 'custom' ? $(selector.includes('snooze') ? '#snoozeDate' : '#resurfaceDate').value : addDays(today, Number(days));
-  if (selector.includes('snooze')) $('#snoozeDate').value = date;
-  else $('#resurfaceDate').value = date;
-}
-function prepareCapture() {
-  state.selectedDays = 1;
-  $('#captureForm').reset();
-  $('#resurfaceTime').value = '09:00';
-  $('#category').value = '';
-  $('#recurring').value = 'once';
-  $('#recurrenceInterval').value = '10';
-  updateChoiceHelp('category'); updateRecurrenceUI('recurring');
-  $$('.capture-form .quick-dates .quick').forEach(btn => btn.classList.toggle('active', btn.dataset.days === '1'));
-  setQuickDate(1);
-  $('#captureError').textContent = '';
-  updateTimezoneHint();
-  openOverlay('#captureOverlay');
-  setTimeout(() => $('#itemText').focus(), 80);
-}
-$$('.open-capture').forEach(btn => btn.addEventListener('click', prepareCapture));
-$$('#captureForm .quick').forEach(btn => btn.addEventListener('click', () => {
-  $$('#captureForm .quick').forEach(x => x.classList.remove('active'));
-  btn.classList.add('active'); state.selectedDays = btn.dataset.days;
-  if (btn.dataset.days !== 'custom') setQuickDate(btn.dataset.days);
-  else $('#resurfaceDate').focus();
-}));
-$('#captureForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  const button = $('#saveItem'); button.disabled = true; $('#captureError').textContent = '';
-  try {
-    const payload = {
-      text:$('#itemText').value.trim(), resurfaceDate:$('#resurfaceDate').value,
-      resurfaceTime:$('#resurfaceTime').value, timezone:state.settings.timezone,
-      category:$('#category').value, recurrenceType:$('#recurring').value, recurrenceInterval:$('#recurrenceInterval').value,
-    };
-    await request('/items', { method:'POST', body:JSON.stringify(payload) });
-    closeOverlay('#captureOverlay');
-    showToast(`${tr('saved')} ${formatLocalInput(payload.resurfaceDate, payload.resurfaceTime)}`);
-    await loadItems(); switchView('today');
-  } catch (error) { $('#captureError').textContent = error.message; }
-  finally { button.disabled = false; }
-});
-function formatLocalInput(date, time) {
-  const d = new Date(`${date}T${time}:00`);
-  return new Intl.DateTimeFormat(state.locale, { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }).format(d);
-}
+$('#settingsBtn').onclick=$('#openSettingsLink').onclick=()=>{fillSettings();$('#settingsError').textContent='';$('#gpsResult').textContent='';openModal('settingsOverlay')};
+$('#country').onchange=()=>{$('#settingsCurrency').value=currencyForCountry($('#country').value)};
+$('#useDeviceBtn').onclick=()=>{const country=detectedCountry();$('#timezone').value=deviceTimezone();$('#country').value=country||'';$('#settingsCurrency').value=currencyForCountry(country);$('#deviceTimezone').textContent=`${tr('device_tz')}: ${deviceTimezone()}`};
+$('#gpsBtn').onclick=()=>{const out=$('#gpsResult');out.textContent=tr('gps_wait');if(!navigator.geolocation)return out.textContent=tr('gps_denied');navigator.geolocation.getCurrentPosition(pos=>{out.textContent=`${tr('gps_local')}: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`},()=>out.textContent=tr('gps_denied'),{enableHighAccuracy:false,timeout:10000,maximumAge:300000})};
+$('#settingsForm').onsubmit=async e=>{e.preventDefault();try{state.settings=await request('/me',{method:'PATCH',body:JSON.stringify({locale:state.locale,country:$('#country').value||null,currency:$('#settingsCurrency').value,timezone:$('#timezone').value,digestTime:$('#digestTime').value,digestEnabled:$('#digestEnabled').value==='true'})});fillSettings();closeModal('settingsOverlay');toast(tr('settings_saved'));await loadItems()}catch(err){$('#settingsError').textContent=err.message}};
 
-async function loadItems() {
-  const data = await request('/items');
-  state.items = { today:data.today, upcoming:data.upcoming, done:data.done };
-  state.settings = data.settings || state.settings;
-  $('#summaryToday').textContent = state.items.today.length;
-  $('#summaryUpcoming').textContent = state.items.upcoming.length;
-  $('#summaryDone').textContent = state.items.done.length;
-  renderItems();
-}
-function renderItems() {
-  renderList('#todayList','#todayCount',state.items.today || [],'today');
-  renderList('#upcomingList','#upcomingCount',state.items.upcoming || [],'upcoming');
-  renderList('#doneList','#doneCount',state.items.done || [],'done');
-}
-function renderList(listId, countId, items, context) {
-  const list = $(listId); if (!list) return;
-  $(countId).textContent = items.length;
-  list.innerHTML = '';
-  if (!items.length) {
-    const titles = { today:'empty_today_title', upcoming:'empty_upcoming_title', done:'empty_done_title' };
-    const texts = { today:'empty_today', upcoming:'empty_upcoming', done:'empty_done' };
-    list.innerHTML = `<div class="empty"><div class="empty-icon">${context === 'done' ? '✓' : '◌'}</div><strong>${tr(titles[context])}</strong><span>${tr(texts[context])}</span></div>`;
-    return;
-  }
-  items.forEach(item => list.appendChild(createItemElement(item, context)));
-}
-function categoryLabel(value) {
-  const def = CATEGORY_DEFS.find(([category]) => category === value);
-  return def ? tr(def[1]) : value;
-}
-function recurrenceLabel(type, interval, legacyDays) {
-  const legacy = ({1:'daily',7:'weekly',14:'biweekly',30:'monthly',90:'quarterly',365:'yearly'})[legacyDays];
-  const value = type || legacy || 'once';
-  if (value === 'custom_days') return `${tr('custom_days')} (${interval || legacyDays || 1})`;
-  const def = RECURRENCE_DEFS.find(([rule]) => rule === value);
-  return def ? tr(def[1]) : '';
-}
-function createItemElement(item, context) {
-  const el = document.createElement('article');
-  el.className = `item ${context === 'done' ? 'done' : ''}`;
-  const check = document.createElement('button');
-  check.className = 'check'; check.setAttribute('aria-label', context === 'done' ? tr('reopen') : tr('done'));
-  check.addEventListener('click', async () => {
-    await request(`/items/${item.id}`, { method:'PATCH', body:JSON.stringify({ action: context === 'done' ? 'reopen' : 'done', timezone:state.settings.timezone }) });
-    showToast(context === 'done' ? tr('reopen') : tr('marked_done')); await loadItems();
-  });
-  const body = document.createElement('div');
-  const text = document.createElement('div'); text.className = 'item-text'; text.textContent = escapeText(item.text);
-  const meta = document.createElement('div'); meta.className = 'item-meta';
-  const schedule = document.createElement('span'); schedule.textContent = formatSchedule(item); meta.appendChild(schedule);
-  if (item.category) { const tag=document.createElement('span'); tag.className='tag'; tag.textContent=categoryLabel(item.category); meta.appendChild(tag); }
-  if ((item.recurrenceType && item.recurrenceType !== 'once') || item.recurringDays) { const repeat=document.createElement('span'); repeat.className='tag'; repeat.textContent=`↻ ${recurrenceLabel(item.recurrenceType,item.recurrenceInterval,item.recurringDays)}`; meta.appendChild(repeat); }
-  body.append(text, meta);
-  const menu = document.createElement('div'); menu.className = 'item-menu';
-  if (context !== 'done') {
-    const snooze = miniButton('↷', tr('snooze'), () => prepareSnooze(item));
-    const edit = miniButton('✎', tr('edit'), () => prepareEdit(item));
-    menu.append(snooze, edit);
-  }
-  const del = miniButton('×', tr('delete'), async () => {
-    if (!confirm(tr('confirm_delete'))) return;
-    await request(`/items/${item.id}`, { method:'DELETE' }); showToast(tr('deleted')); await loadItems();
-  });
-  menu.appendChild(del); el.append(check, body, menu); return el;
-}
-function miniButton(text, label, handler) {
-  const button = document.createElement('button'); button.className='mini'; button.textContent=text; button.title=label; button.setAttribute('aria-label',label); button.addEventListener('click',handler); return button;
-}
+$('#logoutBtn').onclick=async()=>{try{await request('/logout',{method:'POST'})}catch{}localStorage.removeItem('resurface_token');state.token=null;state.settings=null;showMarketing()};
+$$('[data-legal]').forEach(link=>link.onclick=e=>{e.preventDefault();const type=link.dataset.legal;$('#legalTitle').textContent=tr(type+'_title');$('#legalBody').textContent=tr(type+'_body');openModal('legalOverlay')});
 
-function prepareSnooze(item) {
-  state.snoozeId = item.id;
-  $('#snoozeTime').value = item.resurfaceTime || '09:00';
-  $$('.snooze-quick').forEach(btn => btn.classList.toggle('active', btn.dataset.days === '7'));
-  const today = localDateKey(new Date(), state.settings.timezone); $('#snoozeDate').value = addDays(today, 7);
-  openOverlay('#snoozeOverlay');
-}
-$$('.snooze-quick').forEach(btn => btn.addEventListener('click', () => {
-  $$('.snooze-quick').forEach(x => x.classList.remove('active')); btn.classList.add('active');
-  if (btn.dataset.days === 'custom') $('#snoozeDate').focus();
-  else $('#snoozeDate').value = addDays(localDateKey(new Date(),state.settings.timezone),Number(btn.dataset.days));
-}));
-$('#snoozeForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  await request(`/items/${state.snoozeId}`, { method:'PATCH', body:JSON.stringify({ action:'snooze', resurfaceDate:$('#snoozeDate').value, resurfaceTime:$('#snoozeTime').value, timezone:state.settings.timezone }) });
-  closeOverlay('#snoozeOverlay'); showToast(tr('snoozed')); await loadItems();
-});
-function prepareEdit(item) {
-  state.editId = item.id; $('#editText').value = item.text; $('#editDate').value = item.resurfaceDate; $('#editTime').value = item.resurfaceTime;
-  $('#editCategory').value = item.category || '';
-  const legacyType = ({1:'daily',7:'weekly',14:'biweekly',30:'monthly',90:'quarterly',365:'yearly'})[item.recurringDays];
-  $('#editRecurring').value = item.recurrenceType || legacyType || 'once';
-  $('#editRecurrenceInterval').value = item.recurrenceInterval || item.recurringDays || 10;
-  updateChoiceHelp('editCategory'); updateRecurrenceUI('editRecurring');
-  openOverlay('#editOverlay');
-}
-$('#editForm').addEventListener('submit', async event => {
-  event.preventDefault();
-  await request(`/items/${state.editId}`, { method:'PATCH', body:JSON.stringify({ action:'update', text:$('#editText').value.trim(), resurfaceDate:$('#editDate').value, resurfaceTime:$('#editTime').value, category:$('#editCategory').value, recurrenceType:$('#editRecurring').value, recurrenceInterval:$('#editRecurrenceInterval').value, timezone:state.settings.timezone }) });
-  closeOverlay('#editOverlay'); showToast(tr('updated')); await loadItems();
-});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installPrompt=e;$$('.install-trigger').forEach(b=>b.classList.remove('hidden'))});$$('.install-trigger').forEach(btn=>btn.onclick=async()=>{if(state.installPrompt){state.installPrompt.prompt();await state.installPrompt.userChoice;state.installPrompt=null;$$('.install-trigger').forEach(b=>b.classList.add('hidden'))}else toast(state.locale==='fr'?'Utilisez le menu du navigateur puis « Installer l’application ».':'Use your browser menu and choose Install app.')});
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/service-worker.js').catch(()=>{}));
 
-$('#category').addEventListener('change', () => updateChoiceHelp('category'));
-$('#editCategory').addEventListener('change', () => updateChoiceHelp('editCategory'));
-$('#recurring').addEventListener('change', () => updateRecurrenceUI('recurring'));
-$('#editRecurring').addEventListener('change', () => updateRecurrenceUI('editRecurring'));
-
-async function saveSettings(patch, message = true) {
-  state.settings = await request('/me', { method:'PATCH', body:JSON.stringify(patch) });
-  fillTimezones(); fillCountries(); fillCurrencySelect(); renderCurrencyPreview(); renderDigestStatus(); renderTodaySubtitle(); updateTimezoneHint();
-  if (message) showToast(tr('settings_saved'));
-  await loadItems();
-}
-$('#timezone').addEventListener('change', async event => { localStorage.setItem('resurface_timezone_mode','manual'); await saveSettings({ timezone:event.target.value }); });
-$('#country').addEventListener('change', async event => {
-  localStorage.setItem('resurface_country_mode','manual');
-  const country = event.target.value || null;
-  const patch = { country };
-  if ((localStorage.getItem('resurface_currency_mode') || 'auto') === 'auto') patch.currency = currencyForCountry(country);
-  await saveSettings(patch);
-});
-$('#currency').addEventListener('change', async event => { localStorage.setItem('resurface_currency_mode','manual'); await saveSettings({ currency:event.target.value }); });
-$('#currencyAuto').addEventListener('click', async () => { localStorage.setItem('resurface_currency_mode','auto'); await saveSettings({ currency:currencyForCountry(state.settings.country || detectedCountry()) }, false); showToast(tr('auto_applied')); });
-$('#digestTime').addEventListener('change', async event => saveSettings({ digestTime:event.target.value }));
-$('#digestEnabled').addEventListener('change', async event => saveSettings({ digestEnabled:event.target.checked }));
-$('#autoDetect').addEventListener('click', async () => {
-  localStorage.setItem('resurface_timezone_mode','auto'); localStorage.setItem('resurface_country_mode','auto'); localStorage.setItem('resurface_currency_mode','auto');
-  const country = detectedCountry() || state.settings.country;
-  await saveSettings({ timezone:deviceTimezone(), country, currency:currencyForCountry(country) }, false); showToast(tr('auto_applied'));
-});
-$('#gpsButton').addEventListener('click', () => {
-  const output = $('#gpsResult');
-  if (!navigator.geolocation) { output.textContent = tr('gps_denied'); return; }
-  output.textContent = tr('gps_wait');
-  navigator.geolocation.getCurrentPosition(position => {
-    const { latitude, longitude, accuracy } = position.coords;
-    output.textContent = `${tr('gps_local')}: ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)} m)`;
-  }, () => { output.textContent = tr('gps_denied'); }, { enableHighAccuracy:true, timeout:10000, maximumAge:60000 });
-});
-
-function changeLocale(locale) {
-  state.locale = SUPPORTED_LOCALES.includes(locale) ? locale : 'fr'; localStorage.setItem('resurface_locale',state.locale); applyI18n();
-  if (state.token) saveSettings({ locale:state.locale }, false).catch(() => {});
-}
-$('#authLanguage').addEventListener('change', event => changeLocale(event.target.value));
-$('#appLanguage').addEventListener('change', event => changeLocale(event.target.value));
-
-function showToast(message) {
-  const toast = $('#toast'); toast.textContent = message; toast.classList.remove('hidden');
-  clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.add('hidden'), 2800);
-}
-
-window.addEventListener('beforeinstallprompt', event => {
-  event.preventDefault(); state.installPrompt = event;
-  $('#authInstall').classList.remove('hidden'); $('#appInstall').classList.remove('hidden');
-});
-async function installApp() {
-  if (!state.installPrompt) return showToast(tr('install_unavailable'));
-  state.installPrompt.prompt(); await state.installPrompt.userChoice; state.installPrompt = null;
-  $('#authInstall').classList.add('hidden'); $('#appInstall').classList.add('hidden');
-}
-$('#authInstall').addEventListener('click', installApp); $('#appInstall').addEventListener('click', installApp);
-
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(console.warn));
-
-applyI18n();
-if (state.token) openApp();
+async function init(){applyI18n();setQuickDate(7);$('#customTime').value='09:00';await loadConfig();const params=new URLSearchParams(location.search);if(params.get('checkout')==='success'){$('#checkoutBanner').textContent=state.locale==='fr'?'Paiement confirmé. Votre statut Premium se met à jour.':'Payment confirmed. Your Premium status is updating.';$('#checkoutBanner').classList.remove('hidden');history.replaceState({},'',location.pathname)}else if(params.get('checkout')==='cancelled'){$('#checkoutBanner').textContent=state.locale==='fr'?'Paiement annulé. Aucun débit effectué.':'Payment cancelled. No charge was made.';$('#checkoutBanner').classList.remove('hidden');history.replaceState({},'',location.pathname)}if(state.token){try{showApp();await loadMe();await loadItems()}catch{showMarketing()}}else showMarketing()}
+init();

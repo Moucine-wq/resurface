@@ -1,4 +1,4 @@
-// Resurface v4.1 beta — installable PWA, timezone-aware reminders, currency preferences, no payment wall.
+// Resurface v3.2 — interface v3, PWA, horaires locaux, localisation et marketing Premium.
 // Node.js 22 native modules only.
 
 const http = require('http');
@@ -7,14 +7,42 @@ const path = require('path');
 const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
 const emailLib = require('./lib/email');
+const stripeLib = require('./lib/stripe');
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'resurface.db');
-const BETA_MODE = true;
+const VERSION = '3.2.0';
+const FREE_LIMIT = Number(process.env.FREE_LIMIT || 10);
 const DEFAULT_TIMEZONE = 'UTC';
 const DEFAULT_DIGEST_TIME = '08:00';
 const DEFAULT_CURRENCY = 'EUR';
+
+const PRICE_CONFIG = {
+  EUR: { amount: 9, env: 'STRIPE_PRICE_ID_EUR' },
+  USD: { amount: 9, env: 'STRIPE_PRICE_ID_USD' },
+  GBP: { amount: 8, env: 'STRIPE_PRICE_ID_GBP' },
+  CAD: { amount: 12, env: 'STRIPE_PRICE_ID_CAD' },
+  BRL: { amount: 29.90, env: 'STRIPE_PRICE_ID_BRL' },
+  XOF: { amount: 5500, env: 'STRIPE_PRICE_ID_XOF' },
+  MXN: { amount: 149, env: 'STRIPE_PRICE_ID_MXN' },
+  CHF: { amount: 9, env: 'STRIPE_PRICE_ID_CHF' },
+  AUD: { amount: 14, env: 'STRIPE_PRICE_ID_AUD' },
+  JPY: { amount: 1400, env: 'STRIPE_PRICE_ID_JPY' },
+  NGN: { amount: 9000, env: 'STRIPE_PRICE_ID_NGN' },
+  GHS: { amount: 120, env: 'STRIPE_PRICE_ID_GHS' },
+  ZAR: { amount: 169, env: 'STRIPE_PRICE_ID_ZAR' },
+  INR: { amount: 749, env: 'STRIPE_PRICE_ID_INR' },
+  CNY: { amount: 69, env: 'STRIPE_PRICE_ID_CNY' },
+};
+function getPriceId(currency) {
+  const code = normalizeCurrency(currency);
+  const envName = PRICE_CONFIG[code]?.env;
+  return (envName && process.env[envName]) || (code === 'EUR' ? process.env.STRIPE_PRICE_ID : null) || null;
+}
+function paymentsConfigured() {
+  return Boolean(process.env.STRIPE_SECRET_KEY && Object.keys(PRICE_CONFIG).some(code => getPriceId(code)));
+}
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
@@ -257,7 +285,7 @@ function securityHeaders(extra = {}) {
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
-    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com",
     ...extra,
   };
 }
@@ -287,6 +315,21 @@ function parseBody(req) {
     req.on('error', reject);
   });
 }
+function getRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => {
+      data += chunk;
+      if (data.length > 2_000_000) {
+        reject(new Error('Payload trop volumineux.'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => resolve(data));
+    req.on('error', reject);
+  });
+}
+
 function getSessionUser(req) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) return null;
@@ -294,13 +337,14 @@ function getSessionUser(req) {
   const row = db.prepare(`
     SELECT s.user_id AS id, s.expires_at AS expiresAt,
            u.email, u.locale, u.timezone, u.country, u.currency,
+           u.is_premium AS isPremium, u.stripe_customer_id AS stripeCustomerId,
            u.digest_time AS digestTime, u.digest_enabled AS digestEnabled
     FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token = ?
   `).get(token);
   if (!row || new Date(row.expiresAt) <= new Date()) return null;
-  return { ...row, digestEnabled: !!row.digestEnabled, token };
+  return { ...row, isPremium: !!row.isPremium, digestEnabled: !!row.digestEnabled, token };
 }
 function createSession(userId) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -312,11 +356,16 @@ function createSession(userId) {
 }
 function userSettings(userId) {
   const u = db.prepare(`
-    SELECT email, locale, timezone, country, currency,
+    SELECT email, locale, timezone, country, currency, is_premium AS isPremium,
+           stripe_customer_id AS stripeCustomerId,
            digest_time AS digestTime, digest_enabled AS digestEnabled
     FROM users WHERE id = ?
   `).get(userId);
-  return { ...u, digestEnabled: !!u.digestEnabled, betaMode: BETA_MODE };
+  return { ...u, isPremium: !!u.isPremium, digestEnabled: !!u.digestEnabled, freeLimit: FREE_LIMIT };
+}
+
+function activeItemCount(userId) {
+  return db.prepare("SELECT COUNT(*) AS count FROM items WHERE user_id = ? AND status != 'done'").get(userId).count;
 }
 
 const MIME = {
@@ -368,16 +417,43 @@ function authRateLimited(req) {
 async function handleApi(req, res, pathname) {
   try {
     if (pathname === '/api/health' && req.method === 'GET') {
-      return sendJSON(res, 200, { ok: true, version: '4.1.0-beta', betaMode: BETA_MODE });
+      return sendJSON(res, 200, { ok: true, version: VERSION, paymentsConfigured: paymentsConfigured() });
     }
     if (pathname === '/api/config' && req.method === 'GET') {
+      const currencies = {};
+      for (const [code, config] of Object.entries(PRICE_CONFIG)) {
+        currencies[code] = { amount: config.amount, checkoutEnabled: Boolean(getPriceId(code)) };
+      }
       return sendJSON(res, 200, {
-        betaMode: BETA_MODE,
-        paymentsEnabled: false,
+        version: VERSION,
+        freeLimit: FREE_LIMIT,
+        paymentsEnabled: paymentsConfigured(),
+        currencies,
         supportedCurrencies: [...SUPPORTED_CURRENCIES],
-        currencyMode: 'preference-and-preview',
-        locationPolicy: 'Timezone is detected automatically. Exact GPS coordinates are never required or stored.',
+        locationPolicy: 'Timezone and country are detected from the device. Exact GPS is optional and never stored.',
       });
+    }
+
+    if (pathname === '/api/stripe/webhook' && req.method === 'POST') {
+      const rawBody = await getRawBody(req);
+      let event;
+      try {
+        event = stripeLib.verifyWebhookSignature(rawBody, req.headers['stripe-signature']);
+      } catch (error) {
+        console.error('[stripe webhook]', error.message);
+        return sendJSON(res, 400, { error: 'Signature Stripe invalide.' });
+      }
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const userId = session.metadata?.user_id;
+        if (userId) db.prepare('UPDATE users SET is_premium = 1, stripe_customer_id = ?, stripe_subscription_id = ? WHERE id = ?')
+          .run(session.customer, session.subscription, userId);
+      } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+        const subscription = event.data.object;
+        const active = subscription.status === 'active' || subscription.status === 'trialing';
+        db.prepare('UPDATE users SET is_premium = ? WHERE stripe_subscription_id = ?').run(active ? 1 : 0, subscription.id);
+      }
+      return sendJSON(res, 200, { received: true });
     }
 
     if (pathname === '/api/signup' && req.method === 'POST') {
@@ -454,6 +530,40 @@ async function handleApi(req, res, pathname) {
       return sendJSON(res, 200, userSettings(user.id));
     }
 
+    if (pathname === '/api/stripe/create-checkout-session' && req.method === 'POST') {
+      const { currency } = await parseBody(req);
+      const code = normalizeCurrency(currency || user.currency, user.country);
+      const priceId = getPriceId(code);
+      if (!process.env.STRIPE_SECRET_KEY || !priceId) {
+        return sendJSON(res, 503, { error: 'Le paiement dans cette devise n’est pas encore configuré.', code: 'PAYMENT_NOT_CONFIGURED' });
+      }
+      const appUrl = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      try {
+        const session = await stripeLib.createCheckoutSession({
+          userId: user.id,
+          customerEmail: user.email,
+          priceId,
+          successUrl: `${appUrl}/?checkout=success`,
+          cancelUrl: `${appUrl}/?checkout=cancelled`,
+        });
+        return sendJSON(res, 200, { url: session.url });
+      } catch (error) {
+        console.error('[stripe checkout]', error.message);
+        return sendJSON(res, 500, { error: 'Impossible de démarrer le paiement.' });
+      }
+    }
+
+    if (pathname === '/api/stripe/create-portal-session' && req.method === 'POST') {
+      if (!user.stripeCustomerId) return sendJSON(res, 400, { error: 'Aucun abonnement actif.' });
+      const appUrl = process.env.APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+      try {
+        const session = await stripeLib.createBillingPortalSession({ customerId: user.stripeCustomerId, returnUrl: `${appUrl}/` });
+        return sendJSON(res, 200, { url: session.url });
+      } catch (error) {
+        return sendJSON(res, 500, { error: 'Impossible d’ouvrir le portail de facturation.' });
+      }
+    }
+
     if (pathname === '/api/items' && req.method === 'GET') {
       const settings = userSettings(user.id);
       const zone = normalizeTimezone(settings.timezone);
@@ -467,7 +577,7 @@ async function handleApi(req, res, pathname) {
         FROM items WHERE user_id = ?
       `).all(user.id);
       const todayKey = dateKeyInZone(new Date(), zone);
-      const result = { today: [], upcoming: [], done: [], settings, betaMode: BETA_MODE };
+      const result = { today: [], upcoming: [], done: [], settings, isPremium: user.isPremium, freeLimit: FREE_LIMIT };
       for (const row of rows) {
         const schedule = itemLocalSchedule(row, zone);
         const item = { ...row, resurfaceDate: schedule.date, resurfaceTime: schedule.time, timezone: zone };
@@ -482,6 +592,9 @@ async function handleApi(req, res, pathname) {
     }
 
     if (pathname === '/api/items' && req.method === 'POST') {
+      if (!user.isPremium && activeItemCount(user.id) >= FREE_LIMIT) {
+        return sendJSON(res, 402, { error: `Limite du plan gratuit atteinte (${FREE_LIMIT} éléments actifs).`, code: 'LIMIT_REACHED' });
+      }
       const body = await parseBody(req);
       const text = String(body.text || '').trim();
       if (!text) return sendJSON(res, 400, { error: 'Écrivez ce qui doit refaire surface.' });
@@ -592,7 +705,7 @@ async function runDailyDigestJob(referenceDate = new Date()) {
     SELECT id, email, locale, timezone, country,
            digest_time AS digestTime, digest_enabled AS digestEnabled,
            last_digest_date AS lastDigestDate
-    FROM users WHERE digest_enabled = 1
+    FROM users WHERE digest_enabled = 1 AND is_premium = 1
   `).all();
 
   for (const user of users) {
@@ -639,9 +752,9 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Resurface v4.1 beta running on http://localhost:${PORT}`);
+  console.log(`Resurface v${VERSION} running on http://localhost:${PORT}`);
   console.log(`Database: ${DB_PATH}`);
-  console.log(`Email configured: ${Boolean(process.env.RESEND_API_KEY)}`);
+  console.log(`Email configured: ${Boolean(process.env.RESEND_API_KEY)} | Stripe configured: ${paymentsConfigured()}`);
 });
 
 module.exports = {

@@ -1,98 +1,83 @@
-# Resurface v4.1 bêta — PWA installable
+# Resurface v3.2 — interface v3 enrichie
 
-Resurface est une application web progressive installable, pensée comme une vraie application de rappels différés. La bêta reste gratuite et Stripe n’est pas utilisé.
+Cette version conserve le design simple et propre de la version v3, puis ajoute les fonctions utiles développées ensuite sans transformer le tableau de bord en une nouvelle interface.
 
-## Nouveautés v4.1
+## Inclus
 
-- sélecteur de devise réintroduit et entièrement fonctionnel ;
-- devise enregistrée sur le compte et synchronisée entre appareils ;
-- adaptation automatique de la devise au pays détecté ou sélectionné ;
-- sélection manuelle toujours prioritaire ;
-- 15 devises disponibles : EUR, USD, GBP, CAD, BRL, XOF, MXN, CHF, AUD, JPY, NGN, GHS, ZAR, INR et CNY ;
-- aperçu localisé du futur prix mensuel, sans paiement actif pendant la bêta ;
-- catégories beaucoup plus détaillées ;
-- répétitions plus complètes, avec jours ouvrables, tous les deux mois, tous les six mois et intervalle personnalisé ;
-- explications visibles pour chaque catégorie et chaque répétition.
-
-## Fonctions conservées
-
-- PWA installable avec service worker et icônes ;
-- navigation mobile et bouton d’ajout flottant ;
-- sélection de la date et de l’heure ;
-- fuseau horaire IANA mémorisé ;
-- adaptation automatique du fuseau à la connexion ;
-- pays détecté approximativement depuis l’appareil et modifiable ;
-- position GPS facultative affichée uniquement sur l’appareil ;
-- digest quotidien à l’heure locale ;
-- création, modification, report, réouverture et suppression ;
+- page d’accueil marketing complète ;
+- tableau de bord v3 : capture en haut, Aujourd’hui, À venir et Terminés ;
+- PWA installable sur téléphone et ordinateur ;
+- date et heure pour chaque élément ;
+- détection automatique du fuseau horaire à chaque connexion ;
+- pays et devise enregistrés dans les réglages ;
+- localisation GPS facultative et uniquement affichée localement ;
+- 15 devises sélectionnables avec prix localisé ;
+- catégories détaillées ;
+- répétitions détaillées et intervalle personnalisé ;
+- plan gratuit limité à 10 éléments actifs ;
+- marketing Premium et Stripe facultatif ;
+- digest email Premium adapté à l’heure locale ;
 - français, anglais, espagnol et portugais.
 
-## Catégories disponibles
+## Démarrage local
 
-- aucune catégorie ;
-- travail ;
-- personnel ;
-- relance ;
-- argent ;
-- abonnement ;
-- administratif ;
-- santé ;
-- famille ;
-- maison ;
-- idée ;
-- apprentissage ;
-- voyage ;
-- achats ;
-- événement ;
-- autre.
+Node.js 22 est requis.
 
-## Répétitions disponibles
+```bash
+npm start
+```
 
-- une seule fois ;
-- chaque jour ;
-- chaque jour ouvrable ;
-- chaque semaine ;
-- toutes les deux semaines ;
-- chaque mois ;
-- tous les deux mois ;
-- tous les trois mois ;
-- tous les six mois ;
-- chaque année ;
-- intervalle personnalisé de 1 à 3650 jours.
+Puis ouvrir `http://localhost:3000`.
 
-La prochaine occurrence est créée lorsque l’utilisateur marque l’occurrence actuelle comme terminée.
+## Railway
 
-## Déploiement Railway
+- Start Command : `npm start`
+- Healthcheck Path : `/api/health`
+- Volume : `/app/data`
+- Domaine : conserver le domaine Railway existant
 
-1. Remplace les fichiers du dépôt GitHub par le contenu de cette archive.
-2. Ne supprime pas le volume Railway existant.
-3. Monte le volume sur `/app/data`.
-4. Garde la commande `npm start`.
-5. Configure le healthcheck sur `/api/health`.
-6. Variables minimales :
+L’application crée automatiquement le dossier de données. Le volume reste indispensable pour conserver les comptes et rappels entre les déploiements.
+
+## Stripe facultatif
+
+L’application fonctionne sans Stripe. Toutes les devises restent sélectionnables et leur prix marketing est visible. Le bouton de paiement devient actif uniquement lorsqu’un véritable Price ID Stripe est présent pour la devise choisie.
+
+Variables principales :
 
 ```env
 APP_URL=https://resurface-production-0363.up.railway.app
-RESEND_API_KEY=re_...        # facultatif pendant les tests
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_ID_EUR=price_...
+STRIPE_PRICE_ID_USD=price_...
+```
+
+Les autres variables sont documentées dans `.env.example`.
+
+Webhook :
+
+```text
+https://resurface-production-0363.up.railway.app/api/stripe/webhook
+```
+
+Événements :
+
+- `checkout.session.completed`
+- `customer.subscription.updated`
+- `customer.subscription.deleted`
+
+## Emails
+
+```env
+RESEND_API_KEY=re_...
 FROM_EMAIL=Resurface <onboarding@resend.dev>
 ```
 
-Aucune variable Stripe n’est nécessaire.
+Le digest email est réservé aux comptes Premium. Chaque utilisateur choisit son heure locale et son fuseau horaire.
 
-## Vérification locale
+## Vérifications
 
 ```bash
 npm run check
 npm test
-npm start
 ```
-
-Ouvre ensuite `http://localhost:3000`.
-
-## Migrations
-
-Les migrations SQLite sont automatiques et non destructives. Les utilisateurs, rappels, catégories et anciennes récurrences sont conservés. Les anciennes valeurs de répétition sont converties vers le nouveau système.
-
-## Localisation et vie privée
-
-Le fuseau horaire est détecté par le navigateur sans GPS. Le pays est estimé depuis la région de l’appareil et reste modifiable. La position exacte n’est jamais nécessaire. Le bouton GPS affiche les coordonnées uniquement dans le navigateur et ne les envoie pas au serveur.

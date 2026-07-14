@@ -3,113 +3,199 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#087a57">
-  <meta name="description" content="Capturez maintenant. Retrouvez au bon moment.">
-  <meta name="robots" content="noindex,nofollow">
-  <title>Resurface — Bêta</title>
+  <title>Resurface — Retrouvez ce qui compte au bon moment</title>
+  <meta name="description" content="Capturez une idée, une relance ou une chose à vérifier. Resurface vous la remet sous les yeux automatiquement au bon moment.">
+  <meta name="theme-color" content="#081511">
+  <meta property="og:title" content="Resurface — Retrouvez ce qui compte au bon moment">
+  <meta property="og:description" content="Capturez maintenant. Retrouvez au bon moment.">
+  <meta property="og:type" content="website">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="icon" sizes="192x192" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <style>
-    :root{--bg:#f3f7f5;--surface:#fff;--surface2:#eaf5f0;--ink:#10231b;--muted:#63766e;--line:#d8e5df;--brand:#087a57;--brand2:#0b966b;--danger:#c94848;--shadow:0 16px 44px rgba(20,54,42,.10);--radius:20px}
-    *{box-sizing:border-box}html{background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{margin:0;min-height:100vh;background:radial-gradient(circle at 90% -10%,#d9f2e7 0,transparent 36%),var(--bg)}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}.hidden{display:none!important}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
-    .brand{display:flex;align-items:center;gap:11px;font-weight:900;letter-spacing:-.03em}.brand-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#073d2d;box-shadow:0 8px 20px rgba(8,122,87,.2)}.brand-mark svg{width:25px;height:25px}.brand small{display:block;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.02em}.beta{display:inline-flex;padding:5px 9px;border-radius:99px;background:#dff5eb;color:#087a57;font-size:11px;font-weight:850}
-    .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);min-height:44px;padding:0 15px;border-radius:13px;font-weight:800;transition:.16s transform,.16s background}.btn:hover{transform:translateY(-1px)}.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}.btn-soft{background:var(--surface2);border-color:transparent;color:var(--brand)}.btn-danger{color:var(--danger)}.icon-btn{width:44px;padding:0;display:grid;place-items:center}.select,.field{min-height:44px;border:1px solid var(--line);border-radius:13px;background:#fff;padding:0 12px;color:var(--ink);outline:none}.field:focus,.select:focus{border-color:#75c4a7;box-shadow:0 0 0 4px rgba(11,150,107,.10)}
-    #authScreen{min-height:100vh;display:grid;place-items:center;padding:22px}.auth-shell{width:min(960px,100%);display:grid;grid-template-columns:1.05fr .8fr;background:rgba(255,255,255,.9);border:1px solid rgba(216,229,223,.9);border-radius:30px;overflow:hidden;box-shadow:var(--shadow);backdrop-filter:blur(12px)}.auth-story{padding:54px;background:linear-gradient(145deg,#073d2d,#0a7254);color:white;display:flex;flex-direction:column;justify-content:space-between;min-height:610px}.auth-story .brand small{color:#b9e6d5}.auth-copy h1{font-size:clamp(38px,6vw,68px);line-height:.96;letter-spacing:-.055em;margin:36px 0 18px;max-width:620px}.auth-copy p{font-size:18px;line-height:1.65;color:#d3efe4;max-width:580px}.preview{margin-top:34px;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:18px}.preview-row{display:flex;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.12)}.preview-row:last-child{border:0}.preview-time{font-weight:900;color:#6ff0bd}.auth-panel{padding:34px;display:flex;flex-direction:column}.auth-top{display:flex;justify-content:flex-end;gap:8px}.auth-panel h2{font-size:29px;letter-spacing:-.035em;margin:44px 0 8px}.auth-panel>p{color:var(--muted);line-height:1.55;margin:0 0 24px}.segmented{display:grid;grid-template-columns:1fr 1fr;background:#edf3f0;padding:4px;border-radius:14px;margin-bottom:20px}.segmented button{border:0;background:transparent;padding:10px;border-radius:11px;font-weight:800;color:var(--muted)}.segmented button.active{background:#fff;color:var(--ink);box-shadow:0 3px 10px rgba(20,54,42,.08)}.form-stack{display:grid;gap:13px}.form-stack label{font-size:13px;font-weight:800}.form-stack .field{width:100%;margin-top:6px}.form-error{min-height:20px;color:var(--danger);font-size:13px}.auth-foot{margin-top:auto;padding-top:22px;color:var(--muted);font-size:12px;line-height:1.5}
-    #appShell{min-height:100vh}.topbar{position:sticky;top:0;z-index:20;background:rgba(243,247,245,.88);backdrop-filter:blur(16px);border-bottom:1px solid rgba(216,229,223,.8)}.topbar-inner{width:min(1060px,calc(100% - 28px));margin:auto;min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:12px}.top-actions{display:flex;align-items:center;gap:8px}.avatar{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:#fff;font-weight:900;color:var(--brand)}
-    .app-layout{width:min(1060px,calc(100% - 28px));margin:0 auto;padding:26px 0 110px;display:grid;grid-template-columns:220px 1fr;gap:24px}.side-nav{position:sticky;top:96px;height:max-content;display:grid;gap:7px}.nav-btn{display:flex;align-items:center;gap:11px;min-height:48px;border:0;border-radius:14px;background:transparent;padding:0 14px;text-align:left;color:var(--muted);font-weight:800}.nav-btn.active{background:#fff;color:var(--brand);box-shadow:0 5px 18px rgba(20,54,42,.07)}.nav-icon{font-size:19px}.main{min-width:0}.view-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:20px}.view-head h1{font-size:31px;letter-spacing:-.045em;margin:0 0 5px}.view-head p{margin:0;color:var(--muted)}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}.summary-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px}.summary-card strong{display:block;font-size:27px;letter-spacing:-.04em}.summary-card span{color:var(--muted);font-size:12px;font-weight:700}.panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 8px 28px rgba(20,54,42,.04)}.panel+.panel{margin-top:16px}.panel-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.panel-title h2{font-size:16px;margin:0}.count{background:var(--surface2);color:var(--brand);font-size:12px;font-weight:900;padding:4px 9px;border-radius:99px}.list{display:grid;gap:9px}.item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff}.item:hover{border-color:#b7d7ca}.check{width:23px;height:23px;border-radius:50%;border:2px solid #9eb0a8;background:#fff;margin-top:1px;padding:0}.item.done{opacity:.68}.item.done .check{background:var(--brand);border-color:var(--brand);position:relative}.item.done .check:after{content:'✓';color:#fff;font-size:13px;position:absolute;inset:0;display:grid;place-items:center}.item.done .item-text{text-decoration:line-through}.item-text{font-weight:800;line-height:1.35;word-break:break-word}.item-meta{margin-top:6px;color:var(--muted);font-size:12px;display:flex;gap:7px;flex-wrap:wrap}.tag{background:#edf5f1;border-radius:99px;padding:2px 7px}.item-menu{display:flex;gap:5px}.mini{border:1px solid var(--line);background:#fff;border-radius:9px;min-width:34px;height:34px;color:var(--muted);font-weight:800}.empty{text-align:center;padding:38px 16px;color:var(--muted)}.empty-icon{font-size:32px;margin-bottom:8px}.empty strong{display:block;color:var(--ink);margin-bottom:5px}
-    .settings-grid{display:grid;gap:16px}.settings-section{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:20px}.settings-section h2{font-size:17px;margin:0 0 4px}.settings-section>p{color:var(--muted);font-size:13px;line-height:1.55;margin:0 0 18px}.setting-row{display:grid;grid-template-columns:1fr minmax(220px,340px);gap:20px;align-items:center;padding:14px 0;border-top:1px solid #edf2ef}.setting-row:first-of-type{border-top:0}.setting-row label{font-weight:800}.setting-row small{display:block;color:var(--muted);font-weight:500;margin-top:4px;line-height:1.4}.setting-row .field,.setting-row .select{width:100%}.switch{display:flex;align-items:center;justify-content:flex-end;gap:10px}.switch input{width:20px;height:20px}.privacy-note{background:#eef8f4;border-radius:14px;padding:14px;color:#3f6254;font-size:13px;line-height:1.55}.gps-result{font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;color:var(--muted);margin-top:8px}.price-preview{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;background:linear-gradient(135deg,#eef8f4,#f8fbfa);border:1px solid #cfe6dc;border-radius:16px;padding:16px}.price-preview strong{font-size:30px;letter-spacing:-.04em;color:var(--brand)}.price-preview span{color:var(--muted);font-size:13px}.price-preview .free-note{flex-basis:100%;color:var(--brand);font-weight:800;margin-top:3px}.choice-help{display:block;color:var(--muted);font-size:11px;line-height:1.4;margin-top:5px;font-weight:600}.conditional{grid-column:1/-1}.inline-note{padding:10px 12px;background:#f4f8f6;border-radius:12px;color:var(--muted);font-size:12px;line-height:1.45}
-    .fab{position:fixed;right:max(22px,calc((100vw - 1060px)/2 + 22px));bottom:28px;width:58px;height:58px;border-radius:18px;border:0;background:var(--brand);color:white;font-size:29px;box-shadow:0 15px 30px rgba(8,122,87,.28);z-index:25}.bottom-nav{display:none}.overlay{position:fixed;inset:0;background:rgba(8,24,18,.58);z-index:50;display:none;align-items:center;justify-content:center;padding:18px}.overlay.open{display:flex}.dialog{width:min(560px,100%);max-height:min(90vh,800px);overflow:auto;background:#fff;border-radius:24px;padding:24px;box-shadow:var(--shadow);position:relative}.dialog h2{margin:0 36px 5px 0;font-size:24px;letter-spacing:-.035em}.dialog-sub{color:var(--muted);margin:0 0 20px;line-height:1.5}.close{position:absolute;right:15px;top:14px;border:0;background:transparent;font-size:24px;width:38px;height:38px;border-radius:50%}.capture-form{display:grid;gap:15px}.capture-form label{font-size:13px;font-weight:850}.capture-form .field,.capture-form .select{width:100%;margin-top:6px}.capture-form textarea{min-height:112px;padding:13px;resize:vertical}.quick-dates{display:flex;gap:7px;flex-wrap:wrap}.quick{border:1px solid var(--line);background:#fff;border-radius:99px;padding:8px 11px;color:var(--muted);font-weight:750}.quick.active{background:var(--surface2);color:var(--brand);border-color:#a8d6c4}.date-time{display:grid;grid-template-columns:1fr 1fr;gap:10px}.details{border:1px solid var(--line);border-radius:14px;padding:0 14px}.details summary{cursor:pointer;padding:13px 0;font-weight:800}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-bottom:14px}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:90;background:#10231b;color:#fff;border-radius:13px;padding:12px 16px;box-shadow:var(--shadow);font-weight:700;max-width:min(90vw,520px);text-align:center}
-    @media(max-width:780px){.auth-shell{grid-template-columns:1fr}.auth-story{min-height:auto;padding:30px}.auth-copy h1{font-size:45px;margin-top:28px}.preview{display:none}.auth-panel{padding:26px;min-height:430px}.auth-panel h2{margin-top:28px}.app-layout{display:block;padding-top:18px}.side-nav{display:none}.topbar-inner{min-height:62px}.top-actions .install-label,.top-actions .lang-label{display:none}.view-head{align-items:center}.view-head h1{font-size:27px}.summary{grid-template-columns:repeat(3,1fr);gap:8px}.summary-card{padding:12px}.summary-card strong{font-size:23px}.item{grid-template-columns:auto 1fr}.item-menu{grid-column:2;justify-content:flex-start}.fab{right:18px;bottom:84px}.bottom-nav{position:fixed;display:grid;grid-template-columns:repeat(4,1fr);left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:24;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:5px}.bottom-nav .nav-btn{display:grid;place-items:center;gap:1px;min-height:52px;padding:3px;font-size:10px}.bottom-nav .nav-icon{font-size:18px}.setting-row{grid-template-columns:1fr;gap:10px}.switch{justify-content:flex-start}.dialog{border-radius:22px 22px 0 0;align-self:flex-end;width:100%;max-height:92vh}.overlay{padding:0}.date-time,.detail-grid{grid-template-columns:1fr}.toast{bottom:92px}.top-actions .btn:not(.icon-btn){padding:0 10px}.brand small{display:none}}
-    @media(max-width:430px){.auth-story{padding:24px}.auth-copy h1{font-size:39px}.auth-panel{padding:22px}.top-actions .beta{display:none}.summary-card span{font-size:10px}.main{padding-bottom:12px}.panel{padding:14px}.item{padding:12px}.view-head p{font-size:13px}}
-    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
-  </style>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <section id="authScreen">
-    <div class="auth-shell">
-      <div class="auth-story">
-        <div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 14h16M7 14c0-5 2.7-9 5-9s5 4 5 9" stroke="#6ff0bd" stroke-width="2.4" stroke-linecap="round"/></svg></span><div>Resurface<small data-i18n="signature"></small></div></div>
-        <div class="auth-copy"><span class="beta" data-i18n="beta_free"></span><h1 data-i18n="welcome_title"></h1><p data-i18n="welcome_sub"></p>
-          <div class="preview"><div class="preview-row"><span class="preview-time">09:00</span><span data-i18n="sample_one"></span></div><div class="preview-row"><span class="preview-time">14:30</span><span data-i18n="sample_two"></span></div><div class="preview-row"><span class="preview-time">18:00</span><span data-i18n="sample_three"></span></div></div>
+  <div id="marketing">
+    <header class="topbar">
+      <div class="container nav">
+        <button class="brand brand-button" id="brandHome" aria-label="Resurface home">
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 14h16M7 14c0-5 2.7-9 5-9s5 4 5 9" stroke="#5ee6b3" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+          <span>Resurface</span>
+        </button>
+        <nav class="nav-links" aria-label="Navigation principale">
+          <a href="#how" data-i18n="nav_how"></a>
+          <a href="#uses" data-i18n="nav_uses"></a>
+          <a href="#pricing" data-i18n="nav_pricing"></a>
+        </nav>
+        <div class="nav-actions">
+          <button class="btn btn-ghost install-trigger hidden" data-i18n="install"></button>
+          <select class="select locale-select" aria-label="Language">
+            <option value="fr">FR</option><option value="en">EN</option><option value="es">ES</option><option value="pt">PT</option>
+          </select>
+          <button class="btn btn-ghost" id="loginTop" data-i18n="login"></button>
+          <button class="btn btn-primary desktop-cta" id="startTop" data-i18n="try_free"></button>
         </div>
-        <small data-i18n="pwa_note"></small>
       </div>
-      <div class="auth-panel">
-        <div class="auth-top"><select id="authLanguage" class="select" aria-label="Language"><option value="fr">FR</option><option value="en">EN</option><option value="es">ES</option><option value="pt">PT</option></select><button id="authInstall" class="btn hidden" data-i18n="install"></button></div>
-        <h2 id="authTitle"></h2><p data-i18n="auth_sub"></p>
-        <div class="segmented"><button id="signupTab" class="active" data-i18n="create_account"></button><button id="loginTab" data-i18n="login"></button></div>
-        <form id="authForm" class="form-stack">
-          <label><span data-i18n="email"></span><input id="email" class="field" type="email" autocomplete="email" required></label>
-          <label><span data-i18n="password"></span><input id="password" class="field" type="password" minlength="8" autocomplete="new-password" required></label>
-          <div id="authError" class="form-error" role="alert"></div>
-          <button id="authSubmit" class="btn btn-primary" type="submit"></button>
-        </form>
-        <div class="auth-foot" data-i18n="privacy_auth"></div>
+    </header>
+
+    <main>
+      <section class="container hero">
+        <div>
+          <span class="eyebrow" data-i18n="eyebrow"></span>
+          <h1 data-i18n="hero_title"></h1>
+          <p data-i18n="hero_sub"></p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="heroStart" data-i18n="first_reminder"></button>
+            <a class="btn btn-linkbox" href="#how" data-i18n="see_how"></a>
+          </div>
+          <div class="micro" data-i18n="micro"></div>
+        </div>
+        <div class="demo" aria-label="Aperçu du digest Resurface">
+          <div class="demo-top"><span data-i18n="digest_today"></span><span>3</span></div>
+          <div class="demo-card"><strong data-i18n="demo_1"></strong><small data-i18n="demo_1_meta"></small><div class="demo-actions"><span class="pill done" data-i18n="done"></span><span class="pill" data-i18n="snooze"></span></div></div>
+          <div class="demo-card"><strong data-i18n="demo_2"></strong><small data-i18n="demo_2_meta"></small></div>
+          <div class="demo-card"><strong data-i18n="demo_3"></strong><small data-i18n="demo_3_meta"></small></div>
+        </div>
+      </section>
+
+      <section class="section alt" id="how">
+        <div class="container">
+          <div class="section-head"><h2 data-i18n="not_todo"></h2><p data-i18n="not_todo_sub"></p></div>
+          <div class="grid3">
+            <article class="feature"><div class="feature-num">1</div><h3 data-i18n="step1"></h3><p data-i18n="step1p"></p></article>
+            <article class="feature"><div class="feature-num">2</div><h3 data-i18n="step2"></h3><p data-i18n="step2p"></p></article>
+            <article class="feature"><div class="feature-num">3</div><h3 data-i18n="step3"></h3><p data-i18n="step3p"></p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="uses">
+        <div class="container">
+          <div class="section-head"><h2 data-i18n="uses_title"></h2><p data-i18n="uses_sub"></p></div>
+          <div class="grid4">
+            <article class="feature"><h3 data-i18n="use1"></h3><p data-i18n="use1p"></p></article>
+            <article class="feature"><h3 data-i18n="use2"></h3><p data-i18n="use2p"></p></article>
+            <article class="feature"><h3 data-i18n="use3"></h3><p data-i18n="use3p"></p></article>
+            <article class="feature"><h3 data-i18n="use4"></h3><p data-i18n="use4p"></p></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section alt" id="pricing">
+        <div class="container">
+          <div class="section-head"><h2 data-i18n="pricing_title"></h2><p data-i18n="pricing_sub"></p></div>
+          <div class="pricing">
+            <article class="price-card">
+              <h3 data-i18n="free"></h3>
+              <div class="price">0 <small data-i18n="forever"></small></div>
+              <ul><li data-i18n="free1"></li><li data-i18n="free2"></li><li data-i18n="free3"></li></ul>
+              <button class="btn full" id="freeStart" data-i18n="start_free"></button>
+            </article>
+            <article class="price-card pro">
+              <div class="price-head"><h3>Premium</h3><select id="marketingCurrency" class="select currency-select" aria-label="Currency"></select></div>
+              <div class="price" id="marketingPrice"></div>
+              <ul><li data-i18n="pro1"></li><li data-i18n="pro2"></li><li data-i18n="pro3"></li><li data-i18n="pro4"></li></ul>
+              <button class="btn btn-primary full" id="proStart" data-i18n="try_free"></button>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section"><div class="container cta-band"><h2 data-i18n="cta_title"></h2><p data-i18n="cta_sub"></p><button class="btn btn-primary" id="ctaStart" data-i18n="try_resurface"></button></div></section>
+    </main>
+
+    <footer class="footer"><div class="container footer-inner"><span>© 2026 Resurface — <span data-i18n="signature"></span></span><div><a href="mailto:support@resurface.app" data-i18n="contact"></a><a href="#" data-legal="privacy" data-i18n="privacy"></a><a href="#" data-legal="terms" data-i18n="terms"></a></div></div></footer>
+  </div>
+
+  <div id="appShell" class="hidden">
+    <div class="app-wrap">
+      <header class="app-head">
+        <button class="brand brand-button" id="appBrand">
+          <span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 14h16M7 14c0-5 2.7-9 5-9s5 4 5 9" stroke="#5ee6b3" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+          <span><strong>Resurface</strong><small data-i18n="signature"></small></span>
+        </button>
+        <div class="app-actions">
+          <span class="badge" id="planBadge"></span>
+          <button class="btn install-trigger hidden" data-i18n="install"></button>
+          <select class="select locale-select" aria-label="Language"><option value="fr">FR</option><option value="en">EN</option><option value="es">ES</option><option value="pt">PT</option></select>
+          <button class="btn icon-btn" id="settingsBtn" aria-label="Settings">⚙</button>
+          <button class="btn hidden" id="billingBtn" data-i18n="billing"></button>
+          <button class="btn" id="logoutBtn" data-i18n="logout"></button>
+        </div>
+      </header>
+
+      <div id="checkoutBanner" class="notice hidden"></div>
+
+      <section class="capture">
+        <label for="itemText" data-i18n="capture_label"></label>
+        <div class="capture-main"><input id="itemText" type="text" maxlength="500"><button class="btn btn-primary" id="addBtn" data-i18n="schedule"></button></div>
+        <div class="quick-dates">
+          <button class="quick" data-days="1" data-i18n="tomorrow"></button>
+          <button class="quick active" data-days="7" data-i18n="next_week"></button>
+          <button class="quick" data-days="14" data-i18n="two_weeks"></button>
+          <button class="quick" data-days="30" data-i18n="one_month"></button>
+          <button class="quick" data-days="custom" data-i18n="choose_date"></button>
+        </div>
+        <div class="advanced">
+          <label class="compact-field"><span data-i18n="date"></span><input id="customDate" type="date"></label>
+          <label class="compact-field"><span data-i18n="time"></span><input id="customTime" type="time" value="09:00"></label>
+          <label class="compact-field wide"><span data-i18n="category"></span><select id="category"></select></label>
+          <label class="compact-field wide"><span data-i18n="recurrence"></span><select id="recurring"></select></label>
+          <label class="compact-field hidden" id="recurrenceIntervalWrap"><span data-i18n="every_days"></span><input id="recurrenceInterval" type="number" min="1" max="3650" value="10"></label>
+        </div>
+        <div class="option-help"><span id="categoryHelp"></span><span id="recurrenceHelp"></span></div>
+        <div class="timezone-line"><span id="timezoneHint"></span><button id="openSettingsLink" data-i18n="change"></button></div>
+      </section>
+
+      <div class="usage"><span id="usage"></span><button id="upgradeBtn" data-i18n="upgrade"></button></div>
+
+      <div class="app-grid">
+        <section class="panel"><h2><span data-i18n="today"></span><span class="count" id="todayCount">0</span></h2><div id="todayList"></div></section>
+        <section class="panel"><h2><span data-i18n="upcoming"></span><span class="count" id="upcomingCount">0</span></h2><div id="upcomingList"></div></section>
+        <section class="panel full"><h2><span data-i18n="completed"></span><span class="count" id="doneCount">0</span></h2><div id="doneList"></div></section>
       </div>
     </div>
-  </section>
+  </div>
 
-  <section id="appShell" class="hidden">
-    <header class="topbar"><div class="topbar-inner"><div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><path d="M4 14h16M7 14c0-5 2.7-9 5-9s5 4 5 9" stroke="#6ff0bd" stroke-width="2.4" stroke-linecap="round"/></svg></span><div>Resurface<small data-i18n="signature"></small></div></div><div class="top-actions"><span class="beta" data-i18n="beta_free"></span><button id="appInstall" class="btn hidden"><span class="install-label" data-i18n="install"></span> ↓</button><select id="appLanguage" class="select" aria-label="Language"><option value="fr">FR</option><option value="en">EN</option><option value="es">ES</option><option value="pt">PT</option></select><button id="profileButton" class="avatar" aria-label="Settings">M</button></div></div></header>
-    <div class="app-layout">
-      <nav class="side-nav" aria-label="Main navigation">
-        <button class="nav-btn active" data-view="today"><span class="nav-icon">◉</span><span data-i18n="today"></span></button>
-        <button class="nav-btn" data-view="upcoming"><span class="nav-icon">↗</span><span data-i18n="upcoming"></span></button>
-        <button class="nav-btn" data-view="completed"><span class="nav-icon">✓</span><span data-i18n="completed"></span></button>
-        <button class="nav-btn" data-view="settings"><span class="nav-icon">⚙</span><span data-i18n="settings"></span></button>
-      </nav>
-      <main class="main">
-        <section class="view" id="todayView">
-          <div class="view-head"><div><h1 data-i18n="today_title"></h1><p id="todaySubtitle"></p></div><button class="btn btn-primary open-capture" data-i18n="new_item"></button></div>
-          <div class="summary"><div class="summary-card"><strong id="summaryToday">0</strong><span data-i18n="due_today"></span></div><div class="summary-card"><strong id="summaryUpcoming">0</strong><span data-i18n="scheduled"></span></div><div class="summary-card"><strong id="summaryDone">0</strong><span data-i18n="finished"></span></div></div>
-          <div class="panel"><div class="panel-title"><h2 data-i18n="digest_title"></h2><span class="count" id="todayCount">0</span></div><div class="list" id="todayList"></div></div>
-        </section>
-        <section class="view hidden" id="upcomingView"><div class="view-head"><div><h1 data-i18n="upcoming_title"></h1><p data-i18n="upcoming_sub"></p></div><button class="btn btn-primary open-capture" data-i18n="new_item"></button></div><div class="panel"><div class="panel-title"><h2 data-i18n="all_scheduled"></h2><span class="count" id="upcomingCount">0</span></div><div class="list" id="upcomingList"></div></div></section>
-        <section class="view hidden" id="completedView"><div class="view-head"><div><h1 data-i18n="completed_title"></h1><p data-i18n="completed_sub"></p></div></div><div class="panel"><div class="panel-title"><h2 data-i18n="history"></h2><span class="count" id="doneCount">0</span></div><div class="list" id="doneList"></div></div></section>
-        <section class="view hidden" id="settingsView"><div class="view-head"><div><h1 data-i18n="settings"></h1><p data-i18n="settings_sub"></p></div></div><div class="settings-grid">
-          <div class="settings-section"><h2 data-i18n="automatic_context"></h2><p data-i18n="automatic_context_sub"></p>
-            <div class="setting-row"><div><label for="timezone" data-i18n="timezone"></label><small id="deviceTimezone"></small></div><select id="timezone" class="select"></select></div>
-            <div class="setting-row"><div><label for="country" data-i18n="country"></label><small data-i18n="country_help"></small></div><select id="country" class="select"></select></div>
-            <div class="setting-row"><div><label data-i18n="auto_detect"></label><small data-i18n="auto_detect_help"></small></div><button id="autoDetect" class="btn btn-soft" data-i18n="use_device"></button></div>
-          </div>
-          <div class="settings-section"><h2 data-i18n="currency_pricing"></h2><p data-i18n="currency_pricing_sub"></p>
-            <div class="setting-row"><div><label for="currency" data-i18n="currency"></label><small data-i18n="currency_help"></small></div><select id="currency" class="select"></select></div>
-            <div class="setting-row"><div><label data-i18n="currency_auto"></label><small data-i18n="currency_auto_help"></small></div><button id="currencyAuto" class="btn btn-soft" data-i18n="adapt_country"></button></div>
-            <div class="price-preview"><strong id="pricePreviewAmount">9 €</strong><span id="pricePreviewPeriod" data-i18n="per_month"></span><span class="free-note" data-i18n="beta_stays_free"></span></div>
-          </div>
-          <div class="settings-section"><h2 data-i18n="digest_settings"></h2><p data-i18n="digest_settings_sub"></p>
-            <div class="setting-row"><div><label for="digestTime" data-i18n="digest_time"></label><small data-i18n="digest_time_help"></small></div><input id="digestTime" class="field" type="time"></div>
-            <div class="setting-row"><div><label for="digestEnabled" data-i18n="email_digest"></label><small data-i18n="email_digest_help"></small></div><div class="switch"><input id="digestEnabled" type="checkbox"><span id="digestStatus"></span></div></div>
-          </div>
-          <div class="settings-section"><h2 data-i18n="privacy_location"></h2><p data-i18n="privacy_location_sub"></p><div class="privacy-note" data-i18n="location_note"></div><div style="margin-top:12px"><button id="gpsButton" class="btn" data-i18n="check_gps"></button><div id="gpsResult" class="gps-result"></div></div></div>
-          <div class="settings-section"><h2 data-i18n="account"></h2><p id="accountEmail"></p><button id="logout" class="btn btn-danger" data-i18n="logout"></button></div>
-        </div></section>
-      </main>
+  <div class="overlay" id="authOverlay" role="dialog" aria-modal="true">
+    <div class="dialog"><button class="close" data-close="authOverlay" aria-label="Close">×</button><h2 id="authTitle"></h2><p data-i18n="auth_sub"></p>
+      <form id="authForm"><div class="field"><label for="email" data-i18n="email"></label><input id="email" type="email" autocomplete="email" required></div><div class="field"><label for="password" data-i18n="password"></label><input id="password" type="password" minlength="8" required></div><div class="error" id="authError"></div><button class="btn btn-primary full tall" id="authSubmit"></button></form>
+      <div class="switch"><span id="switchText"></span> <button id="switchMode"></button></div>
     </div>
-    <button class="fab open-capture" aria-label="Add">+</button>
-    <nav class="bottom-nav" aria-label="Mobile navigation"><button class="nav-btn active" data-view="today"><span class="nav-icon">◉</span><span data-i18n="today"></span></button><button class="nav-btn" data-view="upcoming"><span class="nav-icon">↗</span><span data-i18n="upcoming"></span></button><button class="nav-btn" data-view="completed"><span class="nav-icon">✓</span><span data-i18n="completed"></span></button><button class="nav-btn" data-view="settings"><span class="nav-icon">⚙</span><span data-i18n="settings"></span></button></nav>
-  </section>
+  </div>
 
-  <div class="overlay" id="captureOverlay" role="dialog" aria-modal="true"><div class="dialog"><button class="close" data-close="captureOverlay" aria-label="Close">×</button><h2 data-i18n="capture_title"></h2><p class="dialog-sub" data-i18n="capture_sub"></p><form id="captureForm" class="capture-form">
-    <label><span data-i18n="what_resurface"></span><textarea id="itemText" class="field" maxlength="500" required></textarea></label>
-    <div class="quick-dates"><button type="button" class="quick active" data-days="1" data-i18n="tomorrow"></button><button type="button" class="quick" data-days="7" data-i18n="next_week"></button><button type="button" class="quick" data-days="14" data-i18n="two_weeks"></button><button type="button" class="quick" data-days="30" data-i18n="one_month"></button><button type="button" class="quick" data-days="custom" data-i18n="custom"></button></div>
-    <div class="date-time"><label><span data-i18n="date"></span><input id="resurfaceDate" class="field" type="date" required></label><label><span data-i18n="time"></span><input id="resurfaceTime" class="field" type="time" required value="09:00"></label></div>
-    <small id="timezoneHint"></small>
-    <details class="details"><summary data-i18n="optional_options"></summary><div class="detail-grid">
-      <label><span data-i18n="category"></span><select id="category" class="select"></select><small id="categoryHelp" class="choice-help"></small></label>
-      <label><span data-i18n="recurrence"></span><select id="recurring" class="select"></select><small id="recurrenceHelp" class="choice-help"></small></label>
-      <label id="customRecurrenceWrap" class="conditional hidden"><span data-i18n="custom_interval"></span><input id="recurrenceInterval" class="field" type="number" min="1" max="3650" value="10"><small class="choice-help" data-i18n="custom_interval_help"></small></label>
-      <div class="inline-note conditional" data-i18n="options_explainer"></div>
-    </div></details>
-    <div id="captureError" class="form-error" role="alert"></div><div class="dialog-actions"><button type="button" class="btn" data-close="captureOverlay" data-i18n="cancel"></button><button id="saveItem" class="btn btn-primary" type="submit" data-i18n="schedule"></button></div>
-  </form></div></div>
+  <div class="overlay" id="payOverlay" role="dialog" aria-modal="true">
+    <div class="dialog paybox"><button class="close" data-close="payOverlay">×</button><h2 data-i18n="premium_title"></h2><p data-i18n="premium_sub"></p>
+      <div class="currency-row"><label for="currency" data-i18n="currency"></label><select id="currency" class="select currency-select"></select></div>
+      <div class="price" id="modalPrice"></div><div class="availability" id="currencyAvailability"></div>
+      <ul><li data-i18n="pro1"></li><li data-i18n="pro2"></li><li data-i18n="pro3"></li><li data-i18n="pro4"></li></ul>
+      <div class="error" id="payError"></div><button class="btn btn-primary full tall" id="checkout" data-i18n="continue_payment"></button>
+    </div>
+  </div>
 
-  <div class="overlay" id="snoozeOverlay" role="dialog" aria-modal="true"><div class="dialog"><button class="close" data-close="snoozeOverlay">×</button><h2 data-i18n="snooze_title"></h2><p class="dialog-sub" data-i18n="snooze_sub"></p><form id="snoozeForm" class="capture-form"><div class="quick-dates"><button type="button" class="snooze-quick quick" data-days="1" data-i18n="tomorrow"></button><button type="button" class="snooze-quick quick active" data-days="7" data-i18n="next_week"></button><button type="button" class="snooze-quick quick" data-days="30" data-i18n="one_month"></button><button type="button" class="snooze-quick quick" data-days="custom" data-i18n="custom"></button></div><div class="date-time"><label><span data-i18n="date"></span><input id="snoozeDate" class="field" type="date" required></label><label><span data-i18n="time"></span><input id="snoozeTime" class="field" type="time" required></label></div><div class="dialog-actions"><button type="button" class="btn" data-close="snoozeOverlay" data-i18n="cancel"></button><button class="btn btn-primary" type="submit" data-i18n="snooze"></button></div></form></div></div>
+  <div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true">
+    <div class="dialog dialog-wide"><button class="close" data-close="settingsOverlay">×</button><h2 data-i18n="settings"></h2><p data-i18n="settings_sub"></p>
+      <form id="settingsForm">
+        <div class="settings-grid">
+          <div class="field"><label for="country" data-i18n="country"></label><select id="country"></select><small data-i18n="country_help"></small></div>
+          <div class="field"><label for="settingsCurrency" data-i18n="currency"></label><select id="settingsCurrency"></select><small data-i18n="currency_help"></small></div>
+          <div class="field full-grid"><label for="timezone" data-i18n="timezone"></label><select id="timezone"></select><small id="deviceTimezone"></small></div>
+          <div class="field"><label for="digestTime" data-i18n="digest_time"></label><input id="digestTime" type="time" value="08:00"></div>
+          <div class="field"><label for="digestEnabled" data-i18n="email_digest"></label><select id="digestEnabled"><option value="true" data-i18n="enabled"></option><option value="false" data-i18n="disabled"></option></select><small data-i18n="premium_digest_note"></small></div>
+        </div>
+        <div class="settings-actions"><button type="button" class="btn" id="useDeviceBtn" data-i18n="use_device"></button><button type="button" class="btn" id="gpsBtn" data-i18n="check_gps"></button></div><div class="gps-result" id="gpsResult"></div>
+        <div class="error" id="settingsError"></div><button class="btn btn-primary full tall" type="submit" data-i18n="save_settings"></button>
+      </form>
+    </div>
+  </div>
 
-  <div class="overlay" id="editOverlay" role="dialog" aria-modal="true"><div class="dialog"><button class="close" data-close="editOverlay">×</button><h2 data-i18n="edit_title"></h2><form id="editForm" class="capture-form"><label><span data-i18n="what_resurface"></span><textarea id="editText" class="field" maxlength="500" required></textarea></label><div class="date-time"><label><span data-i18n="date"></span><input id="editDate" class="field" type="date" required></label><label><span data-i18n="time"></span><input id="editTime" class="field" type="time" required></label></div><div class="detail-grid"><label><span data-i18n="category"></span><select id="editCategory" class="select"></select><small id="editCategoryHelp" class="choice-help"></small></label><label><span data-i18n="recurrence"></span><select id="editRecurring" class="select"></select><small id="editRecurrenceHelp" class="choice-help"></small></label><label id="editCustomRecurrenceWrap" class="conditional hidden"><span data-i18n="custom_interval"></span><input id="editRecurrenceInterval" class="field" type="number" min="1" max="3650" value="10"><small class="choice-help" data-i18n="custom_interval_help"></small></label></div><div class="dialog-actions"><button type="button" class="btn" data-close="editOverlay" data-i18n="cancel"></button><button class="btn btn-primary" type="submit" data-i18n="save"></button></div></form></div></div>
+  <div class="overlay" id="snoozeOverlay" role="dialog" aria-modal="true"><div class="dialog"><button class="close" data-close="snoozeOverlay">×</button><h2 data-i18n="snooze_title"></h2><p data-i18n="snooze_sub"></p><form id="snoozeForm"><div class="two-fields"><div class="field"><label data-i18n="date"></label><input id="snoozeDate" type="date" required></div><div class="field"><label data-i18n="time"></label><input id="snoozeTime" type="time" required></div></div><button class="btn btn-primary full tall" data-i18n="snooze"></button></form></div></div>
 
-  <div id="toast" class="toast hidden" role="status"></div>
+  <div class="overlay" id="editOverlay" role="dialog" aria-modal="true"><div class="dialog dialog-wide"><button class="close" data-close="editOverlay">×</button><h2 data-i18n="edit_title"></h2><form id="editForm"><div class="field"><label data-i18n="capture_label"></label><input id="editText" maxlength="500" required></div><div class="two-fields"><div class="field"><label data-i18n="date"></label><input id="editDate" type="date" required></div><div class="field"><label data-i18n="time"></label><input id="editTime" type="time" required></div></div><div class="two-fields"><div class="field"><label data-i18n="category"></label><select id="editCategory"></select><small id="editCategoryHelp"></small></div><div class="field"><label data-i18n="recurrence"></label><select id="editRecurring"></select><small id="editRecurrenceHelp"></small></div></div><div class="field hidden" id="editRecurrenceIntervalWrap"><label data-i18n="every_days"></label><input id="editRecurrenceInterval" type="number" min="1" max="3650"></div><button class="btn btn-primary full tall" data-i18n="save"></button></form></div></div>
+
+  <div class="overlay" id="legalOverlay" role="dialog" aria-modal="true"><div class="dialog"><button class="close" data-close="legalOverlay">×</button><h2 id="legalTitle"></h2><div id="legalBody" class="legal-body"></div></div></div>
+  <div class="toast hidden" id="toast" role="status"></div>
+
   <script src="/app.js" defer></script>
 </body>
 </html>

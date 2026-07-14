@@ -1,11 +1,11 @@
 {
   "name": "resurface",
-  "version": "4.1.0-beta",
-  "description": "Resurface installable beta app — timezone-aware reminders, localized currency preferences, detailed categories and recurrence",
+  "version": "3.2.0",
+  "description": "Resurface SaaS/PWA — interface v3, rappels locaux, devises et Premium",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check lib/email.js && node --check public/app.js && node --check public/service-worker.js",
+    "check": "node --check server.js && node --check lib/email.js && node --check lib/stripe.js && node --check public/app.js && node --check public/service-worker.js",
     "test": "node tests/smoke.js"
   },
   "engines": { "node": "22" },

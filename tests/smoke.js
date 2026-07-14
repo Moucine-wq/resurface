@@ -5,7 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const port = 39000 + Math.floor(Math.random() * 1000);
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'resurface-v4-1-'));
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'resurface-v3-2-'));
 const child = spawn(process.execPath, ['server.js'], {
   cwd: path.join(__dirname, '..'),
   env: { ...process.env, PORT:String(port), DB_PATH:path.join(temp,'test.db') },
@@ -31,7 +31,7 @@ async function api(pathname, options={}) {
   try {
     await waitForServer();
     const health=await api('/health');
-    if(health.version!=='4.1.0-beta') throw new Error('Wrong version');
+    if(health.version!=='3.2.0') throw new Error('Wrong version');
     const config=await api('/config');
     if(config.paymentsEnabled!==false || !config.supportedCurrencies.includes('XOF')) throw new Error('Currency config missing');
 
