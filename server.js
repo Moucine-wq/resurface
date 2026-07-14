@@ -15,16 +15,26 @@ const stripeLib = require('./lib/stripe');
 const emailLib = require('./lib/email');
 
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
-const DB_PATH = path.join(DATA_DIR, 'resurface.db');
+const DB_PATH = path.join(__dirname, 'data', 'resurface.db');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const FREE_LIMIT = 10;
 const DIGEST_HOUR_UTC = Number(process.env.DIGEST_HOUR_UTC || 8); // 08h UTC par défaut
 
+const PRICE_CONFIG = {
+  EUR: { env: 'STRIPE_PRICE_ID_EUR', amount: 9 },
+  USD: { env: 'STRIPE_PRICE_ID_USD', amount: 9 },
+  GBP: { env: 'STRIPE_PRICE_ID_GBP', amount: 8 },
+  CAD: { env: 'STRIPE_PRICE_ID_CAD', amount: 12 },
+  BRL: { env: 'STRIPE_PRICE_ID_BRL', amount: 29.90 },
+};
+function getPriceId(currency) {
+  const code = String(currency || 'EUR').toUpperCase();
+  const cfg = PRICE_CONFIG[code];
+  if (!cfg) return null;
+  return process.env[cfg.env] || (code === 'EUR' ? process.env.STRIPE_PRICE_ID : null);
+}
+
 // ---------- DB ----------
-// Le dossier data/ peut être absent (ex: Git ne suit pas les dossiers vides) — on le crée
-// défensivement pour que le démarrage ne dépende jamais de la présence d'un .gitkeep.
-fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
@@ -78,12 +88,21 @@ function hashPassword(password, salt) {
 }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
+function securityHeaders(extra = {}) { return {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com",
+  ...extra,
+}; }
+
 function sendJSON(res, status, obj) {
   const body = JSON.stringify(obj);
-  res.writeHead(status, {
+  res.writeHead(status, securityHeaders({
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
-  });
+  }));
   res.end(body);
 }
 
@@ -160,7 +179,7 @@ function serveStatic(req, res) {
   fs.readFile(filePath, (err, content) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }
     const ext = path.extname(filePath);
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.writeHead(200, securityHeaders({ 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400' }));
     res.end(content);
   });
 }
@@ -198,11 +217,21 @@ async function handleApi(req, res, pathname) {
       return sendJSON(res, 200, { received: true });
     }
 
+    // ----- Public pricing configuration -----
+    if (pathname === '/api/config' && req.method === 'GET') {
+      const currencies = Object.fromEntries(Object.entries(PRICE_CONFIG).map(([code, cfg]) => [code, { amount: cfg.amount, checkoutEnabled: !!getPriceId(code) }]));
+      return sendJSON(res, 200, { currencies, freeLimit: FREE_LIMIT });
+    }
+
+    if (pathname === '/api/health' && req.method === 'GET') {
+      return sendJSON(res, 200, { ok: true, version: '3.0.0' });
+    }
+
     // ----- Signup -----
     if (pathname === '/api/signup' && req.method === 'POST') {
       const { email, password, locale } = await parseBody(req);
-      if (!email || !password || password.length < 6) {
-        return sendJSON(res, 400, { error: 'Email invalide ou mot de passe trop court (min 6 caractères).', code: 'INVALID_INPUT' });
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password || password.length < 8) {
+        return sendJSON(res, 400, { error: 'Email invalide ou mot de passe trop court (min 8 caractères).', code: 'INVALID_INPUT' });
       }
       const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
       if (existing) return sendJSON(res, 409, { error: 'Un compte existe déjà avec cet email.', code: 'EMAIL_EXISTS' });
@@ -249,13 +278,19 @@ async function handleApi(req, res, pathname) {
 
     // POST /api/stripe/create-checkout-session
     if (pathname === '/api/stripe/create-checkout-session' && req.method === 'POST') {
-      const origin = req.headers.origin || process.env.APP_URL || `http://localhost:${PORT}`;
+      const { currency } = await parseBody(req);
+      const code = String(currency || 'EUR').toUpperCase();
+      const priceId = getPriceId(code);
+      if (!PRICE_CONFIG[code]) return sendJSON(res, 400, { error: 'Devise non prise en charge.' });
+      if (!priceId) return sendJSON(res, 503, { error: `Le prix Stripe ${code} n'est pas encore configuré. Ajoute ${PRICE_CONFIG[code].env} dans Railway.` });
+      const origin = process.env.APP_URL || `http://localhost:${PORT}`;
       try {
         const session = await stripeLib.createCheckoutSession({
           userId: user.id,
           customerEmail: user.email,
           successUrl: `${origin}/?checkout=success`,
           cancelUrl: `${origin}/?checkout=cancelled`,
+          priceId,
         });
         return sendJSON(res, 200, { url: session.url });
       } catch (err) {
@@ -267,7 +302,7 @@ async function handleApi(req, res, pathname) {
     // POST /api/stripe/create-portal-session (gérer/annuler l'abonnement)
     if (pathname === '/api/stripe/create-portal-session' && req.method === 'POST') {
       if (!user.stripeCustomerId) return sendJSON(res, 400, { error: 'Aucun abonnement actif.' });
-      const origin = req.headers.origin || process.env.APP_URL || `http://localhost:${PORT}`;
+      const origin = process.env.APP_URL || `http://localhost:${PORT}`;
       try {
         const session = await stripeLib.createBillingPortalSession({
           customerId: user.stripeCustomerId,

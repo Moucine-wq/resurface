@@ -81,3 +81,10 @@ tous les appareils une fois connecté.
 Node.js natif uniquement : `http`/`https` pour le serveur et les appels Stripe/Resend,
 `node:sqlite` pour la base de données, `crypto` pour le hashing et les signatures.
 Aucun `npm install` requis, donc zéro dépendance à auditer ou à maintenir.
+
+
+## Tarification multidevise (v3)
+
+L'interface propose EUR, USD, GBP, CAD et BRL. Chaque devise doit correspondre à un vrai Price Stripe mensuel : `STRIPE_PRICE_ID_EUR`, `STRIPE_PRICE_ID_USD`, `STRIPE_PRICE_ID_GBP`, `STRIPE_PRICE_ID_CAD`, `STRIPE_PRICE_ID_BRL`. L'ancienne variable `STRIPE_PRICE_ID` reste le fallback EUR. Ne laissez jamais l'interface afficher une devise dont le Price ID n'est pas configuré en production.
+
+Prix d'affichage par défaut : 9 EUR, 9 USD, 8 GBP, 12 CAD, 29,90 BRL. Ajustez ces montants à la fois dans Stripe et dans `public/index.html` si votre stratégie change.
