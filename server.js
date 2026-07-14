@@ -1,41 +1,25 @@
-// Resurface — backend production (Node.js natif + node:sqlite, zéro dépendance npm)
-// Lancer: node server.js   (PORT via variable d'env, 3000 par défaut)
-//
-// Variables d'environnement nécessaires (voir .env.example) :
-//   STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET
-//   RESEND_API_KEY, FROM_EMAIL
-//   APP_URL (ex: https://resurface.tondomaine.com)
+// Resurface v4.1 beta — installable PWA, timezone-aware reminders, currency preferences, no payment wall.
+// Node.js 22 native modules only.
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { DatabaseSync } = require('node:sqlite');
-const stripeLib = require('./lib/stripe');
 const emailLib = require('./lib/email');
 
-const PORT = process.env.PORT || 3000;
-const DB_PATH = path.join(__dirname, 'data', 'resurface.db');
+const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const FREE_LIMIT = 10;
-const DIGEST_HOUR_UTC = Number(process.env.DIGEST_HOUR_UTC || 8); // 08h UTC par défaut
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'resurface.db');
+const BETA_MODE = true;
+const DEFAULT_TIMEZONE = 'UTC';
+const DEFAULT_DIGEST_TIME = '08:00';
+const DEFAULT_CURRENCY = 'EUR';
 
-const PRICE_CONFIG = {
-  EUR: { env: 'STRIPE_PRICE_ID_EUR', amount: 9 },
-  USD: { env: 'STRIPE_PRICE_ID_USD', amount: 9 },
-  GBP: { env: 'STRIPE_PRICE_ID_GBP', amount: 8 },
-  CAD: { env: 'STRIPE_PRICE_ID_CAD', amount: 12 },
-  BRL: { env: 'STRIPE_PRICE_ID_BRL', amount: 29.90 },
-};
-function getPriceId(currency) {
-  const code = String(currency || 'EUR').toUpperCase();
-  const cfg = PRICE_CONFIG[code];
-  if (!cfg) return null;
-  return process.env[cfg.env] || (code === 'EUR' ? process.env.STRIPE_PRICE_ID : null);
-}
-
-// ---------- DB ----------
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new DatabaseSync(DB_PATH);
+db.exec('PRAGMA foreign_keys = ON;');
+db.exec('PRAGMA journal_mode = WAL;');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -48,6 +32,12 @@ db.exec(`
     stripe_subscription_id TEXT,
     last_digest_date TEXT,
     locale TEXT NOT NULL DEFAULT 'fr',
+    timezone TEXT NOT NULL DEFAULT 'UTC',
+    country TEXT,
+    currency TEXT NOT NULL DEFAULT 'EUR',
+    digest_time TEXT NOT NULL DEFAULT '08:00',
+    digest_enabled INTEGER NOT NULL DEFAULT 1,
+    last_seen_at TEXT,
     created_at TEXT NOT NULL
   );
 
@@ -57,404 +47,606 @@ db.exec(`
     text TEXT NOT NULL,
     category TEXT,
     recurring_days INTEGER,
+    recurrence_type TEXT NOT NULL DEFAULT 'once',
+    recurrence_interval INTEGER NOT NULL DEFAULT 1,
     resurface_at TEXT NOT NULL,
+    resurface_at_utc TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL,
+    updated_at TEXT,
     completed_at TEXT,
-    FOREIGN KEY(user_id) REFERENCES users(id)
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS sessions (
     token TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    expires_at TEXT NOT NULL
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
 
-// Migration légère pour les bases déjà déployées avant l'ajout de la colonne locale
-try { db.exec(`ALTER TABLE users ADD COLUMN locale TEXT NOT NULL DEFAULT 'fr'`); }
-catch (e) { /* colonne déjà présente, ignorer */ }
+function addColumn(sql) {
+  try { db.exec(sql); } catch (error) {
+    if (!String(error.message).includes('duplicate column name')) throw error;
+  }
+}
+addColumn(`ALTER TABLE users ADD COLUMN locale TEXT NOT NULL DEFAULT 'fr'`);
+addColumn(`ALTER TABLE users ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'`);
+addColumn(`ALTER TABLE users ADD COLUMN country TEXT`);
+addColumn(`ALTER TABLE users ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR'`);
+addColumn(`ALTER TABLE users ADD COLUMN digest_time TEXT NOT NULL DEFAULT '08:00'`);
+addColumn(`ALTER TABLE users ADD COLUMN digest_enabled INTEGER NOT NULL DEFAULT 1`);
+addColumn(`ALTER TABLE users ADD COLUMN last_seen_at TEXT`);
+addColumn(`ALTER TABLE items ADD COLUMN recurrence_type TEXT NOT NULL DEFAULT 'once'`);
+addColumn(`ALTER TABLE items ADD COLUMN recurrence_interval INTEGER NOT NULL DEFAULT 1`);
+addColumn(`ALTER TABLE items ADD COLUMN resurface_at_utc TEXT`);
+addColumn(`ALTER TABLE items ADD COLUMN updated_at TEXT`);
+
+db.exec(`
+  UPDATE items
+  SET recurrence_type = CASE recurring_days
+    WHEN 1 THEN 'daily'
+    WHEN 7 THEN 'weekly'
+    WHEN 14 THEN 'biweekly'
+    WHEN 30 THEN 'monthly'
+    WHEN 90 THEN 'quarterly'
+    WHEN 365 THEN 'yearly'
+    ELSE COALESCE(NULLIF(recurrence_type, ''), 'once')
+  END
+  WHERE recurrence_type IS NULL OR recurrence_type = '' OR (recurrence_type = 'once' AND recurring_days IS NOT NULL);
+
+  UPDATE items
+  SET recurrence_interval = CASE
+    WHEN recurrence_type = 'custom_days' AND recurring_days IS NOT NULL THEN recurring_days
+    ELSE COALESCE(recurrence_interval, 1)
+  END
+  WHERE recurrence_interval IS NULL OR recurrence_interval < 1;
+
+  UPDATE items
+  SET resurface_at_utc = resurface_at || 'T09:00:00.000Z'
+  WHERE resurface_at_utc IS NULL OR resurface_at_utc = '';
+
+  CREATE INDEX IF NOT EXISTS idx_items_user_status_due
+    ON items(user_id, status, resurface_at_utc);
+  CREATE INDEX IF NOT EXISTS idx_sessions_expiry
+    ON sessions(expires_at);
+`);
 
 const SUPPORTED_LOCALES = ['fr', 'en', 'es', 'pt'];
-function normalizeLocale(locale) {
-  return SUPPORTED_LOCALES.includes(locale) ? locale : 'fr';
-}
+const SUPPORTED_CURRENCIES = new Set(['EUR','USD','GBP','CAD','BRL','XOF','MXN','CHF','AUD','JPY','NGN','GHS','ZAR','INR','CNY']);
+const COUNTRY_CURRENCY = {
+  US:'USD', BR:'BRL', FR:'EUR', DE:'EUR', IT:'EUR', ES:'EUR', PT:'EUR',
+  GB:'GBP', CA:'CAD', BJ:'XOF', SN:'XOF', CI:'XOF', TG:'XOF', ML:'XOF', BF:'XOF', NE:'XOF',
+  MX:'MXN', CH:'CHF', AU:'AUD', JP:'JPY', NG:'NGN', GH:'GHS', ZA:'ZAR', IN:'INR', CN:'CNY',
+};
+const RECURRENCE_TYPES = new Set(['once','daily','weekdays','weekly','biweekly','monthly','bimonthly','quarterly','semiannual','yearly','custom_days']);
 
-// ---------- Helpers ----------
 function uid() { return crypto.randomUUID(); }
+function nowIso() { return new Date().toISOString(); }
+function normalizeLocale(value) {
+  return SUPPORTED_LOCALES.includes(value) ? value : 'fr';
+}
+function normalizeCountry(value) {
+  const country = String(value || '').trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(country) ? country : null;
+}
+function currencyForCountry(country) {
+  return COUNTRY_CURRENCY[normalizeCountry(country)] || DEFAULT_CURRENCY;
+}
+function normalizeCurrency(value, country = null) {
+  const currency = String(value || '').trim().toUpperCase();
+  return SUPPORTED_CURRENCIES.has(currency) ? currency : currencyForCountry(country);
+}
+function normalizeRecurrence(type, interval = 1) {
+  const recurrenceType = RECURRENCE_TYPES.has(String(type || '')) ? String(type) : 'once';
+  const recurrenceInterval = recurrenceType === 'custom_days'
+    ? Math.min(3650, Math.max(1, Number(interval || 1)))
+    : 1;
+  return { recurrenceType, recurrenceInterval };
+}
+function normalizeTimezone(value) {
+  const timezone = String(value || '').trim();
+  if (!timezone) return DEFAULT_TIMEZONE;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+    return timezone;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
+}
+function normalizeTime(value, fallback = '09:00') {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || '')) ? String(value) : fallback;
+}
+function isDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`));
+}
 function hashPassword(password, salt) {
   return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
 }
-function todayISO() { return new Date().toISOString().slice(0, 10); }
+function secureEqualHex(a, b) {
+  try {
+    const aa = Buffer.from(a, 'hex');
+    const bb = Buffer.from(b, 'hex');
+    return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
+  } catch { return false; }
+}
 
-function securityHeaders(extra = {}) { return {
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://checkout.stripe.com",
-  ...extra,
-}; }
+function zonedParts(date, timeZone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const out = {};
+  for (const part of parts) if (part.type !== 'literal') out[part.type] = Number(part.value);
+  if (out.hour === 24) out.hour = 0;
+  return out;
+}
+function dateKeyInZone(date, timeZone) {
+  const p = zonedParts(date, timeZone);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+function timeKeyInZone(date, timeZone) {
+  const p = zonedParts(date, timeZone);
+  return `${String(p.hour).padStart(2, '0')}:${String(p.minute).padStart(2, '0')}`;
+}
+function timeMinutesInZone(date, timeZone) {
+  const p = zonedParts(date, timeZone);
+  return p.hour * 60 + p.minute;
+}
+function timezoneOffsetMs(date, timeZone) {
+  const p = zonedParts(date, timeZone);
+  const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return asUtc - Math.floor(date.getTime() / 1000) * 1000;
+}
+function localDateTimeToUtc(dateStr, timeStr, timeZone) {
+  if (!isDate(dateStr)) throw new Error('Date invalide.');
+  const time = normalizeTime(timeStr);
+  const zone = normalizeTimezone(timeZone);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const naiveUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+  let offset = timezoneOffsetMs(naiveUtc, zone);
+  let result = new Date(naiveUtc.getTime() - offset);
+  const correctedOffset = timezoneOffsetMs(result, zone);
+  if (correctedOffset !== offset) result = new Date(naiveUtc.getTime() - correctedOffset);
+  return result.toISOString();
+}
+function addDaysToDate(dateStr, days) {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + Number(days || 0));
+  return d.toISOString().slice(0, 10);
+}
+function addMonthsToDate(dateStr, months) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const target = new Date(Date.UTC(year, month - 1 + Number(months || 0), 1, 12));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0, 12)).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+function nextRecurrenceDate(dateStr, type, interval = 1) {
+  switch (type) {
+    case 'daily': return addDaysToDate(dateStr, 1);
+    case 'weekdays': {
+      let next = addDaysToDate(dateStr, 1);
+      while ([0, 6].includes(new Date(`${next}T12:00:00Z`).getUTCDay())) next = addDaysToDate(next, 1);
+      return next;
+    }
+    case 'weekly': return addDaysToDate(dateStr, 7);
+    case 'biweekly': return addDaysToDate(dateStr, 14);
+    case 'monthly': return addMonthsToDate(dateStr, 1);
+    case 'bimonthly': return addMonthsToDate(dateStr, 2);
+    case 'quarterly': return addMonthsToDate(dateStr, 3);
+    case 'semiannual': return addMonthsToDate(dateStr, 6);
+    case 'yearly': return addMonthsToDate(dateStr, 12);
+    case 'custom_days': return addDaysToDate(dateStr, Math.min(3650, Math.max(1, Number(interval || 1))));
+    default: return null;
+  }
+}
+function itemLocalSchedule(row, timeZone) {
+  const due = new Date(row.resurfaceAtUtc || `${row.resurfaceAt}T09:00:00.000Z`);
+  return { date: dateKeyInZone(due, timeZone), time: timeKeyInZone(due, timeZone) };
+}
 
-function sendJSON(res, status, obj) {
-  const body = JSON.stringify(obj);
+function securityHeaders(extra = {}) {
+  return {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
+    'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    ...extra,
+  };
+}
+function sendJSON(res, status, payload) {
+  const body = JSON.stringify(payload);
   res.writeHead(status, securityHeaders({
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
+    'Cache-Control': 'no-store',
   }));
   res.end(body);
 }
-
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
     req.on('data', chunk => {
       data += chunk;
-      if (data.length > 1e6) req.destroy();
+      if (data.length > 1_000_000) {
+        reject(new Error('Payload trop volumineux.'));
+        req.destroy();
+      }
     });
     req.on('end', () => {
       if (!data) return resolve({});
-      try { resolve(JSON.parse(data)); }
-      catch (e) { reject(e); }
+      try { resolve(JSON.parse(data)); } catch { reject(new Error('JSON invalide.')); }
     });
     req.on('error', reject);
   });
 }
-
-function getRawBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => {
-      data += chunk;
-      if (data.length > 2e6) req.destroy();
-    });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
-  });
-}
-
 function getSessionUser(req) {
-  const auth = req.headers['authorization'];
+  const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) return null;
   const token = auth.slice(7);
-  const row = db.prepare(
-    `SELECT s.user_id as userId, s.expires_at as expiresAt,
-            u.email as email, u.is_premium as isPremium,
-            u.stripe_customer_id as stripeCustomerId, u.locale as locale
-     FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token = ?`
-  ).get(token);
-  if (!row) return null;
-  if (new Date(row.expiresAt) < new Date()) return null;
-  return { id: row.userId, email: row.email, isPremium: !!row.isPremium, stripeCustomerId: row.stripeCustomerId, locale: row.locale || 'fr', token };
+  const row = db.prepare(`
+    SELECT s.user_id AS id, s.expires_at AS expiresAt,
+           u.email, u.locale, u.timezone, u.country, u.currency,
+           u.digest_time AS digestTime, u.digest_enabled AS digestEnabled
+    FROM sessions s
+    JOIN users u ON u.id = s.user_id
+    WHERE s.token = ?
+  `).get(token);
+  if (!row || new Date(row.expiresAt) <= new Date()) return null;
+  return { ...row, digestEnabled: !!row.digestEnabled, token };
 }
-
 function createSession(userId) {
   const token = crypto.randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+  const created = nowIso();
+  const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   db.prepare('INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
-    .run(token, userId, new Date().toISOString(), expires);
+    .run(token, userId, created, expires);
   return token;
 }
-
-function activeItemCount(userId) {
-  const row = db.prepare(`SELECT COUNT(*) as c FROM items WHERE user_id = ? AND status != 'done'`).get(userId);
-  return row.c;
+function userSettings(userId) {
+  const u = db.prepare(`
+    SELECT email, locale, timezone, country, currency,
+           digest_time AS digestTime, digest_enabled AS digestEnabled
+    FROM users WHERE id = ?
+  `).get(userId);
+  return { ...u, digestEnabled: !!u.digestEnabled, betaMode: BETA_MODE };
 }
 
-// ---------- Static file serving ----------
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json',
+  '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.ico': 'image/x-icon',
+  '.xml': 'application/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
 };
-
 function serveStatic(req, res) {
-  let filePath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-  filePath = path.join(PUBLIC_DIR, filePath);
-  if (!filePath.startsWith(PUBLIC_DIR)) { res.writeHead(403); res.end(); return; }
-  fs.readFile(filePath, (err, content) => {
-    if (err) { res.writeHead(404); res.end('Not found'); return; }
-    const ext = path.extname(filePath);
-    res.writeHead(200, securityHeaders({ 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=86400' }));
+  const requestPath = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+  const resolved = path.resolve(PUBLIC_DIR, `.${requestPath}`);
+  const root = path.resolve(PUBLIC_DIR) + path.sep;
+  if (resolved !== path.resolve(PUBLIC_DIR, 'index.html') && !resolved.startsWith(root)) {
+    res.writeHead(403, securityHeaders());
+    return res.end('Forbidden');
+  }
+  fs.readFile(resolved, (error, content) => {
+    if (error) {
+      res.writeHead(404, securityHeaders({ 'Content-Type': 'text/plain; charset=utf-8' }));
+      return res.end('Not found');
+    }
+    const ext = path.extname(resolved);
+    const isMutable = ext === '.html' || ext === '.js' || ext === '.css' || ext === '.webmanifest';
+    res.writeHead(200, securityHeaders({
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      'Cache-Control': isMutable ? 'no-cache' : 'public, max-age=604800, immutable',
+    }));
     res.end(content);
   });
 }
 
-// ---------- API routes ----------
+const authAttempts = new Map();
+function authRateLimited(req) {
+  const key = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  const now = Date.now();
+  const windowStart = now - 10 * 60 * 1000;
+  const recent = (authAttempts.get(key) || []).filter(t => t > windowStart);
+  recent.push(now);
+  authAttempts.set(key, recent);
+  return recent.length > 30;
+}
+
 async function handleApi(req, res, pathname) {
   try {
-    // ----- Stripe webhook : nécessite le corps BRUT (avant tout JSON.parse) pour vérifier la signature -----
-    if (pathname === '/api/stripe/webhook' && req.method === 'POST') {
-      const rawBody = await getRawBody(req);
-      let event;
-      try {
-        event = stripeLib.verifyWebhookSignature(rawBody, req.headers['stripe-signature']);
-      } catch (err) {
-        console.error('[webhook] signature invalide:', err.message);
-        return sendJSON(res, 400, { error: 'Signature invalide.' });
-      }
-
-      if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const userId = session.metadata?.user_id;
-        if (userId) {
-          db.prepare('UPDATE users SET is_premium = 1, stripe_customer_id = ?, stripe_subscription_id = ? WHERE id = ?')
-            .run(session.customer, session.subscription, userId);
-          console.log('[webhook] Premium activé pour user', userId);
-        }
-      } else if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
-        const sub = event.data.object;
-        const isActive = sub.status === 'active' || sub.status === 'trialing';
-        db.prepare('UPDATE users SET is_premium = ? WHERE stripe_subscription_id = ?')
-          .run(isActive ? 1 : 0, sub.id);
-        console.log('[webhook] Statut abonnement mis à jour:', sub.id, '->', isActive);
-      }
-
-      return sendJSON(res, 200, { received: true });
-    }
-
-    // ----- Public pricing configuration -----
-    if (pathname === '/api/config' && req.method === 'GET') {
-      const currencies = Object.fromEntries(Object.entries(PRICE_CONFIG).map(([code, cfg]) => [code, { amount: cfg.amount, checkoutEnabled: !!getPriceId(code) }]));
-      return sendJSON(res, 200, { currencies, freeLimit: FREE_LIMIT });
-    }
-
     if (pathname === '/api/health' && req.method === 'GET') {
-      return sendJSON(res, 200, { ok: true, version: '3.0.0' });
+      return sendJSON(res, 200, { ok: true, version: '4.1.0-beta', betaMode: BETA_MODE });
+    }
+    if (pathname === '/api/config' && req.method === 'GET') {
+      return sendJSON(res, 200, {
+        betaMode: BETA_MODE,
+        paymentsEnabled: false,
+        supportedCurrencies: [...SUPPORTED_CURRENCIES],
+        currencyMode: 'preference-and-preview',
+        locationPolicy: 'Timezone is detected automatically. Exact GPS coordinates are never required or stored.',
+      });
     }
 
-    // ----- Signup -----
     if (pathname === '/api/signup' && req.method === 'POST') {
-      const { email, password, locale } = await parseBody(req);
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password || password.length < 8) {
-        return sendJSON(res, 400, { error: 'Email invalide ou mot de passe trop court (min 8 caractères).', code: 'INVALID_INPUT' });
+      if (authRateLimited(req)) return sendJSON(res, 429, { error: 'Trop de tentatives. Réessayez dans quelques minutes.' });
+      const { email, password, locale, timezone, country, currency } = await parseBody(req);
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) || String(password || '').length < 8) {
+        return sendJSON(res, 400, { error: 'Email invalide ou mot de passe trop court (8 caractères minimum).', code: 'INVALID_INPUT' });
       }
-      const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
-      if (existing) return sendJSON(res, 409, { error: 'Un compte existe déjà avec cet email.', code: 'EMAIL_EXISTS' });
-
+      if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(cleanEmail)) {
+        return sendJSON(res, 409, { error: 'Un compte existe déjà avec cet email.', code: 'EMAIL_EXISTS' });
+      }
       const salt = crypto.randomBytes(16).toString('hex');
-      const hash = hashPassword(password, salt);
       const id = uid();
-      const finalLocale = normalizeLocale(locale);
-      db.prepare('INSERT INTO users (id, email, password_hash, salt, locale, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(id, email.toLowerCase(), hash, salt, finalLocale, new Date().toISOString());
-
+      const created = nowIso();
+      db.prepare(`
+        INSERT INTO users
+          (id, email, password_hash, salt, locale, timezone, country, currency, digest_time, digest_enabled, last_seen_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `).run(
+        id, cleanEmail, hashPassword(String(password), salt), salt,
+        normalizeLocale(locale), normalizeTimezone(timezone), normalizeCountry(country),
+        normalizeCurrency(currency, country), DEFAULT_DIGEST_TIME, created, created,
+      );
       const token = createSession(id);
-      return sendJSON(res, 200, { token, email: email.toLowerCase(), isPremium: false, locale: finalLocale });
+      return sendJSON(res, 201, { token, ...userSettings(id) });
     }
 
-    // ----- Login -----
     if (pathname === '/api/login' && req.method === 'POST') {
-      const { email, password } = await parseBody(req);
-      const user = db.prepare('SELECT * FROM users WHERE email = ?').get((email || '').toLowerCase());
-      if (!user) return sendJSON(res, 401, { error: 'Identifiants invalides.', code: 'INVALID_CREDENTIALS' });
-      const hash = hashPassword(password, user.salt);
-      if (hash !== user.password_hash) return sendJSON(res, 401, { error: 'Identifiants invalides.', code: 'INVALID_CREDENTIALS' });
-
+      if (authRateLimited(req)) return sendJSON(res, 429, { error: 'Trop de tentatives. Réessayez dans quelques minutes.' });
+      const { email, password, timezone, country, currency } = await parseBody(req);
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail);
+      const hash = user ? hashPassword(String(password || ''), user.salt) : '';
+      if (!user || !secureEqualHex(hash, user.password_hash)) {
+        return sendJSON(res, 401, { error: 'Identifiants invalides.', code: 'INVALID_CREDENTIALS' });
+      }
+      const zone = normalizeTimezone(timezone || user.timezone);
+      const cleanCountry = normalizeCountry(country) || user.country;
+      const cleanCurrency = normalizeCurrency(currency || user.currency, cleanCountry);
+      db.prepare('UPDATE users SET timezone = ?, country = ?, currency = ?, last_seen_at = ? WHERE id = ?')
+        .run(zone, cleanCountry, cleanCurrency, nowIso(), user.id);
       const token = createSession(user.id);
-      return sendJSON(res, 200, { token, email: user.email, isPremium: !!user.is_premium, locale: user.locale || 'fr' });
+      return sendJSON(res, 200, { token, ...userSettings(user.id) });
     }
 
-    // ----- Toutes les routes suivantes nécessitent une session valide -----
     const user = getSessionUser(req);
-    if (!user) return sendJSON(res, 401, { error: 'Non authentifié.' });
+    if (!user) return sendJSON(res, 401, { error: 'Votre session a expiré. Reconnectez-vous.', code: 'UNAUTHENTICATED' });
 
-    // GET /api/me
+    if (pathname === '/api/logout' && req.method === 'POST') {
+      db.prepare('DELETE FROM sessions WHERE token = ?').run(user.token);
+      return sendJSON(res, 200, { ok: true });
+    }
+
     if (pathname === '/api/me' && req.method === 'GET') {
-      return sendJSON(res, 200, { email: user.email, isPremium: user.isPremium, locale: user.locale });
+      return sendJSON(res, 200, userSettings(user.id));
     }
 
-    // PATCH /api/me — changer la langue préférée (utilisée pour l'UI et les emails)
     if (pathname === '/api/me' && req.method === 'PATCH') {
-      const { locale } = await parseBody(req);
-      const finalLocale = normalizeLocale(locale);
-      db.prepare('UPDATE users SET locale = ? WHERE id = ?').run(finalLocale, user.id);
-      return sendJSON(res, 200, { locale: finalLocale });
+      const body = await parseBody(req);
+      const next = {
+        locale: body.locale === undefined ? user.locale : normalizeLocale(body.locale),
+        timezone: body.timezone === undefined ? user.timezone : normalizeTimezone(body.timezone),
+        country: body.country === undefined ? user.country : normalizeCountry(body.country),
+        currency: body.currency === undefined ? normalizeCurrency(user.currency, user.country) : normalizeCurrency(body.currency, body.country === undefined ? user.country : body.country),
+        digestTime: body.digestTime === undefined ? user.digestTime : normalizeTime(body.digestTime, DEFAULT_DIGEST_TIME),
+        digestEnabled: body.digestEnabled === undefined ? user.digestEnabled : !!body.digestEnabled,
+      };
+      db.prepare(`
+        UPDATE users
+        SET locale = ?, timezone = ?, country = ?, currency = ?, digest_time = ?, digest_enabled = ?, last_seen_at = ?
+        WHERE id = ?
+      `).run(next.locale, next.timezone, next.country, next.currency, next.digestTime, next.digestEnabled ? 1 : 0, nowIso(), user.id);
+      return sendJSON(res, 200, userSettings(user.id));
     }
 
-    // POST /api/stripe/create-checkout-session
-    if (pathname === '/api/stripe/create-checkout-session' && req.method === 'POST') {
-      const { currency } = await parseBody(req);
-      const code = String(currency || 'EUR').toUpperCase();
-      const priceId = getPriceId(code);
-      if (!PRICE_CONFIG[code]) return sendJSON(res, 400, { error: 'Devise non prise en charge.' });
-      if (!priceId) return sendJSON(res, 503, { error: `Le prix Stripe ${code} n'est pas encore configuré. Ajoute ${PRICE_CONFIG[code].env} dans Railway.` });
-      const origin = process.env.APP_URL || `http://localhost:${PORT}`;
-      try {
-        const session = await stripeLib.createCheckoutSession({
-          userId: user.id,
-          customerEmail: user.email,
-          successUrl: `${origin}/?checkout=success`,
-          cancelUrl: `${origin}/?checkout=cancelled`,
-          priceId,
-        });
-        return sendJSON(res, 200, { url: session.url });
-      } catch (err) {
-        console.error('[stripe] création session échouée:', err.message);
-        return sendJSON(res, 500, { error: 'Impossible de créer la session de paiement: ' + err.message });
-      }
-    }
-
-    // POST /api/stripe/create-portal-session (gérer/annuler l'abonnement)
-    if (pathname === '/api/stripe/create-portal-session' && req.method === 'POST') {
-      if (!user.stripeCustomerId) return sendJSON(res, 400, { error: 'Aucun abonnement actif.' });
-      const origin = process.env.APP_URL || `http://localhost:${PORT}`;
-      try {
-        const session = await stripeLib.createBillingPortalSession({
-          customerId: user.stripeCustomerId,
-          returnUrl: `${origin}/`,
-        });
-        return sendJSON(res, 200, { url: session.url });
-      } catch (err) {
-        return sendJSON(res, 500, { error: err.message });
-      }
-    }
-
-    // GET /api/items
     if (pathname === '/api/items' && req.method === 'GET') {
-      const rows = db.prepare(
-        `SELECT id, text, category, recurring_days as recurringDays, resurface_at as resurfaceAt,
-                status, created_at as createdAt, completed_at as completedAt
-         FROM items WHERE user_id = ? ORDER BY resurface_at ASC`
-      ).all(user.id);
-
-      const today = todayISO();
-      const result = { today: [], upcoming: [], done: [], isPremium: user.isPremium, freeLimit: FREE_LIMIT };
-      for (const r of rows) {
-        if (r.status === 'done') result.done.push(r);
-        else if (r.resurfaceAt <= today) result.today.push(r);
-        else result.upcoming.push(r);
+      const settings = userSettings(user.id);
+      const zone = normalizeTimezone(settings.timezone);
+      const rows = db.prepare(`
+        SELECT id, text, category, recurring_days AS recurringDays,
+               recurrence_type AS recurrenceType, recurrence_interval AS recurrenceInterval,
+               resurface_at AS resurfaceAt,
+               resurface_at_utc AS resurfaceAtUtc,
+               status, created_at AS createdAt, updated_at AS updatedAt,
+               completed_at AS completedAt
+        FROM items WHERE user_id = ?
+      `).all(user.id);
+      const todayKey = dateKeyInZone(new Date(), zone);
+      const result = { today: [], upcoming: [], done: [], settings, betaMode: BETA_MODE };
+      for (const row of rows) {
+        const schedule = itemLocalSchedule(row, zone);
+        const item = { ...row, resurfaceDate: schedule.date, resurfaceTime: schedule.time, timezone: zone };
+        if (row.status === 'done') result.done.push(item);
+        else if (schedule.date <= todayKey) result.today.push(item);
+        else result.upcoming.push(item);
       }
+      result.today.sort((a, b) => String(a.resurfaceAtUtc).localeCompare(String(b.resurfaceAtUtc)));
+      result.upcoming.sort((a, b) => String(a.resurfaceAtUtc).localeCompare(String(b.resurfaceAtUtc)));
+      result.done.sort((a, b) => String(b.completedAt || '').localeCompare(String(a.completedAt || '')));
       return sendJSON(res, 200, result);
     }
 
-    // POST /api/items
     if (pathname === '/api/items' && req.method === 'POST') {
-      const { text, resurfaceAt, category, recurringDays } = await parseBody(req);
-      if (!text || !text.trim()) return sendJSON(res, 400, { error: 'Le texte est requis.' });
-
-      if (!user.isPremium && activeItemCount(user.id) >= FREE_LIMIT) {
-        return sendJSON(res, 402, { error: 'Limite du plan gratuit atteinte (10 rappels actifs). Passe en Premium pour continuer.', code: 'LIMIT_REACHED' });
-      }
-
-      const date = resurfaceAt && /^\d{4}-\d{2}-\d{2}$/.test(resurfaceAt) ? resurfaceAt : todayISO();
-      const finalCategory = user.isPremium ? (category || null) : null;
-      const finalRecurring = user.isPremium && recurringDays ? Number(recurringDays) : null;
-
+      const body = await parseBody(req);
+      const text = String(body.text || '').trim();
+      if (!text) return sendJSON(res, 400, { error: 'Écrivez ce qui doit refaire surface.' });
+      if (text.length > 500) return sendJSON(res, 400, { error: 'Le texte ne peut pas dépasser 500 caractères.' });
+      const zone = normalizeTimezone(body.timezone || user.timezone);
+      const localToday = dateKeyInZone(new Date(), zone);
+      const date = isDate(body.resurfaceDate || body.resurfaceAt) ? String(body.resurfaceDate || body.resurfaceAt) : localToday;
+      const time = normalizeTime(body.resurfaceTime, '09:00');
+      const dueUtc = localDateTimeToUtc(date, time, zone);
+      const category = String(body.category || '').trim().slice(0, 40) || null;
+      const legacyDays = Number(body.recurringDays || 0);
+      const legacyType = ({1:'daily',7:'weekly',14:'biweekly',30:'monthly',90:'quarterly',365:'yearly'})[legacyDays];
+      const { recurrenceType, recurrenceInterval } = normalizeRecurrence(body.recurrenceType || legacyType || 'once', body.recurrenceInterval || legacyDays || 1);
+      const recurringDays = recurrenceType === 'custom_days' ? recurrenceInterval : ({daily:1,weekly:7,biweekly:14,monthly:30,quarterly:90,yearly:365}[recurrenceType] || null);
+      const created = nowIso();
       const id = uid();
-      db.prepare(
-        `INSERT INTO items (id, user_id, text, category, recurring_days, resurface_at, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`
-      ).run(id, user.id, text.trim(), finalCategory, finalRecurring, date, new Date().toISOString());
-      return sendJSON(res, 200, { id });
+      db.prepare(`
+        INSERT INTO items
+          (id, user_id, text, category, recurring_days, recurrence_type, recurrence_interval, resurface_at, resurface_at_utc, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      `).run(id, user.id, text, category, recurringDays, recurrenceType, recurrenceInterval, date, dueUtc, created, created);
+      return sendJSON(res, 201, { id, resurfaceAtUtc: dueUtc, resurfaceDate: date, resurfaceTime: time, timezone: zone });
     }
 
-    // PATCH /api/items/:id
-    const patchMatch = pathname.match(/^\/api\/items\/([a-f0-9-]+)$/);
-    if (patchMatch && req.method === 'PATCH') {
-      const itemId = patchMatch[1];
-      const item = db.prepare('SELECT * FROM items WHERE id = ? AND user_id = ?').get(itemId, user.id);
-      if (!item) return sendJSON(res, 404, { error: 'Introuvable.' });
+    const itemMatch = pathname.match(/^\/api\/items\/([a-f0-9-]+)$/);
+    if (itemMatch && req.method === 'PATCH') {
+      const itemId = itemMatch[1];
+      const item = db.prepare(`
+        SELECT id, user_id, text, category, recurring_days, recurrence_type, recurrence_interval,
+               resurface_at, resurface_at_utc, status, created_at, completed_at
+        FROM items WHERE id = ? AND user_id = ?
+      `).get(itemId, user.id);
+      if (!item) return sendJSON(res, 404, { error: 'Cet élément n’existe plus.' });
+      const body = await parseBody(req);
+      const action = body.action;
+      const zone = normalizeTimezone(body.timezone || user.timezone);
+      const updated = nowIso();
 
-      const { action, days, resurfaceAt } = await parseBody(req);
       if (action === 'done') {
-        db.prepare('UPDATE items SET status = ?, completed_at = ? WHERE id = ?')
-          .run('done', new Date().toISOString(), itemId);
-
-        // Rappel récurrent (Premium) : recrée automatiquement la prochaine occurrence
-        if (item.recurring_days) {
-          const d = new Date();
-          d.setDate(d.getDate() + item.recurring_days);
-          db.prepare(
-            `INSERT INTO items (id, user_id, text, category, recurring_days, resurface_at, status, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)`
-          ).run(uid(), user.id, item.text, item.category, item.recurring_days, d.toISOString().slice(0, 10), new Date().toISOString());
+        db.prepare('UPDATE items SET status = ?, completed_at = ?, updated_at = ? WHERE id = ?')
+          .run('done', updated, updated, itemId);
+        const recurrenceType = item.recurrence_type || ({1:'daily',7:'weekly',14:'biweekly',30:'monthly',90:'quarterly',365:'yearly'})[item.recurring_days] || 'once';
+        const recurrenceInterval = item.recurrence_interval || item.recurring_days || 1;
+        const schedule = itemLocalSchedule({ resurfaceAtUtc: item.resurface_at_utc, resurfaceAt: item.resurface_at }, zone);
+        const nextDate = nextRecurrenceDate(schedule.date, recurrenceType, recurrenceInterval);
+        if (nextDate) {
+          const nextUtc = localDateTimeToUtc(nextDate, schedule.time, zone);
+          const legacyDays = recurrenceType === 'custom_days' ? recurrenceInterval : ({daily:1,weekly:7,biweekly:14,monthly:30,quarterly:90,yearly:365}[recurrenceType] || null);
+          db.prepare(`
+            INSERT INTO items
+              (id, user_id, text, category, recurring_days, recurrence_type, recurrence_interval, resurface_at, resurface_at_utc, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+          `).run(uid(), user.id, item.text, item.category, legacyDays, recurrenceType, recurrenceInterval, nextDate, nextUtc, updated, updated);
         }
-      } else if (action === 'snooze') {
-        let newDate;
-        if (resurfaceAt && /^\d{4}-\d{2}-\d{2}$/.test(resurfaceAt)) newDate = resurfaceAt;
-        else {
-          const d = new Date();
-          d.setDate(d.getDate() + (Number(days) || 7));
-          newDate = d.toISOString().slice(0, 10);
-        }
-        db.prepare('UPDATE items SET status = ?, resurface_at = ? WHERE id = ?').run('pending', newDate, itemId);
       } else if (action === 'reopen') {
-        db.prepare('UPDATE items SET status = ?, completed_at = NULL WHERE id = ?').run('pending', itemId);
+        db.prepare('UPDATE items SET status = ?, completed_at = NULL, updated_at = ? WHERE id = ?')
+          .run('pending', updated, itemId);
+      } else if (action === 'snooze') {
+        const current = itemLocalSchedule({ resurfaceAtUtc: item.resurface_at_utc, resurfaceAt: item.resurface_at }, zone);
+        const days = Math.min(365, Math.max(1, Number(body.days || 7)));
+        const date = isDate(body.resurfaceDate) ? String(body.resurfaceDate) : addDaysToDate(dateKeyInZone(new Date(), zone), days);
+        const time = normalizeTime(body.resurfaceTime, current.time || '09:00');
+        const dueUtc = localDateTimeToUtc(date, time, zone);
+        db.prepare(`
+          UPDATE items SET status = 'pending', resurface_at = ?, resurface_at_utc = ?, completed_at = NULL, updated_at = ?
+          WHERE id = ?
+        `).run(date, dueUtc, updated, itemId);
+      } else if (action === 'update') {
+        const text = body.text === undefined ? item.text : String(body.text || '').trim();
+        if (!text) return sendJSON(res, 400, { error: 'Le texte ne peut pas être vide.' });
+        const current = itemLocalSchedule({ resurfaceAtUtc: item.resurface_at_utc, resurfaceAt: item.resurface_at }, zone);
+        const date = isDate(body.resurfaceDate) ? String(body.resurfaceDate) : current.date;
+        const time = normalizeTime(body.resurfaceTime, current.time);
+        const dueUtc = localDateTimeToUtc(date, time, zone);
+        const category = body.category === undefined ? item.category : (String(body.category || '').trim().slice(0, 40) || null);
+        const legacyDays = body.recurringDays === undefined ? item.recurring_days : Number(body.recurringDays || 0);
+        const currentType = item.recurrence_type || ({1:'daily',7:'weekly',14:'biweekly',30:'monthly',90:'quarterly',365:'yearly'})[item.recurring_days] || 'once';
+        const { recurrenceType, recurrenceInterval } = normalizeRecurrence(
+          body.recurrenceType === undefined ? currentType : body.recurrenceType,
+          body.recurrenceInterval === undefined ? (item.recurrence_interval || legacyDays || 1) : body.recurrenceInterval,
+        );
+        const recurringDays = recurrenceType === 'custom_days' ? recurrenceInterval : ({daily:1,weekly:7,biweekly:14,monthly:30,quarterly:90,yearly:365}[recurrenceType] || null);
+        db.prepare(`
+          UPDATE items
+          SET text = ?, category = ?, recurring_days = ?, recurrence_type = ?, recurrence_interval = ?, resurface_at = ?, resurface_at_utc = ?, updated_at = ?
+          WHERE id = ?
+        `).run(text, category, recurringDays, recurrenceType, recurrenceInterval, date, dueUtc, updated, itemId);
       } else {
         return sendJSON(res, 400, { error: 'Action inconnue.' });
       }
       return sendJSON(res, 200, { ok: true });
     }
 
-    // DELETE /api/items/:id
-    const delMatch = pathname.match(/^\/api\/items\/([a-f0-9-]+)$/);
-    if (delMatch && req.method === 'DELETE') {
-      db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?').run(delMatch[1], user.id);
+    if (itemMatch && req.method === 'DELETE') {
+      db.prepare('DELETE FROM items WHERE id = ? AND user_id = ?').run(itemMatch[1], user.id);
       return sendJSON(res, 200, { ok: true });
     }
 
     return sendJSON(res, 404, { error: 'Route inconnue.' });
-  } catch (err) {
-    console.error(err);
-    return sendJSON(res, 500, { error: 'Erreur serveur.' });
+  } catch (error) {
+    console.error('[api]', error);
+    return sendJSON(res, 500, { error: 'Une erreur serveur est survenue.' });
   }
 }
 
-// ---------- Job quotidien : email de rappel aux utilisateurs Premium ----------
-async function runDailyDigestJob() {
-  const today = todayISO();
-  const premiumUsers = db.prepare(
-    `SELECT id, email, locale, last_digest_date FROM users WHERE is_premium = 1 AND (last_digest_date IS NULL OR last_digest_date != ?)`
-  ).all(today);
+async function runDailyDigestJob(referenceDate = new Date()) {
+  const users = db.prepare(`
+    SELECT id, email, locale, timezone, country,
+           digest_time AS digestTime, digest_enabled AS digestEnabled,
+           last_digest_date AS lastDigestDate
+    FROM users WHERE digest_enabled = 1
+  `).all();
 
-  for (const u of premiumUsers) {
-    const items = db.prepare(
-      `SELECT text, category FROM items WHERE user_id = ? AND status != 'done' AND resurface_at <= ?`
-    ).all(u.id, today);
+  for (const user of users) {
+    const zone = normalizeTimezone(user.timezone);
+    const localDate = dateKeyInZone(referenceDate, zone);
+    const targetMinutes = Number(user.digestTime.slice(0, 2)) * 60 + Number(user.digestTime.slice(3, 5));
+    if (user.lastDigestDate === localDate || timeMinutesInZone(referenceDate, zone) < targetMinutes) continue;
 
-    if (items.length === 0) continue;
+    const rows = db.prepare(`
+      SELECT text, category, resurface_at AS resurfaceAt, resurface_at_utc AS resurfaceAtUtc
+      FROM items WHERE user_id = ? AND status != 'done'
+    `).all(user.id);
+    const due = rows.filter(row => itemLocalSchedule(row, zone).date <= localDate).map(row => ({
+      text: row.text,
+      category: row.category,
+      displayTime: itemLocalSchedule(row, zone).time,
+    }));
 
-    const locale = u.locale || 'fr';
     try {
-      await emailLib.sendEmail({
-        to: u.email,
-        subject: emailLib.digestSubject(items.length, locale),
-        html: emailLib.digestEmailHtml(items, locale),
-      });
-      db.prepare('UPDATE users SET last_digest_date = ? WHERE id = ?').run(today, u.id);
-      console.log('[digest] envoyé à', u.email, '(' + items.length + ' items, locale=' + locale + ')');
-    } catch (err) {
-      console.error('[digest] échec envoi à', u.email, ':', err.message);
+      if (due.length) {
+        await emailLib.sendEmail({
+          to: user.email,
+          subject: emailLib.digestSubject(due.length, user.locale || 'fr'),
+          html: emailLib.digestEmailHtml(due, user.locale || 'fr'),
+        });
+        console.log(`[digest] ${due.length} item(s) -> ${user.email} (${zone})`);
+      }
+      db.prepare('UPDATE users SET last_digest_date = ? WHERE id = ?').run(localDate, user.id);
+    } catch (error) {
+      console.error(`[digest] failed for ${user.email}:`, error.message);
     }
   }
 }
 
-// Vérifie toutes les 15 min si c'est l'heure du digest (par défaut 08h UTC)
 setInterval(() => {
-  const hour = new Date().getUTCHours();
-  if (hour === DIGEST_HOUR_UTC) {
-    runDailyDigestJob().catch(err => console.error('[digest] erreur job:', err));
-  }
-}, 15 * 60 * 1000);
+  runDailyDigestJob().catch(error => console.error('[digest job]', error));
+  db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(nowIso());
+}, 5 * 60 * 1000);
 
-// ---------- Server ----------
 const server = http.createServer((req, res) => {
   const pathname = req.url.split('?')[0];
-  if (pathname.startsWith('/api/')) {
-    handleApi(req, res, pathname);
-  } else {
-    serveStatic(req, res);
-  }
+  if (pathname.startsWith('/api/')) handleApi(req, res, pathname);
+  else serveStatic(req, res);
 });
 
 server.listen(PORT, () => {
-  console.log(`Resurface (prod) tourne sur http://localhost:${PORT}`);
-  console.log(`Stripe configuré: ${!!process.env.STRIPE_SECRET_KEY} | Resend configuré: ${!!process.env.RESEND_API_KEY}`);
+  console.log(`Resurface v4.1 beta running on http://localhost:${PORT}`);
+  console.log(`Database: ${DB_PATH}`);
+  console.log(`Email configured: ${Boolean(process.env.RESEND_API_KEY)}`);
 });
 
-module.exports = { runDailyDigestJob }; // exporté pour les tests
+module.exports = {
+  runDailyDigestJob,
+  localDateTimeToUtc,
+  dateKeyInZone,
+  normalizeTimezone,
+};

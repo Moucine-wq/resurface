@@ -1,3 +1,2 @@
 User-agent: *
-Allow: /
-Sitemap: https://resurface-production-0363.up.railway.app/sitemap.xml
+Disallow: /

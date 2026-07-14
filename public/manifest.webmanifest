@@ -1,0 +1,18 @@
+{
+  "name": "Resurface",
+  "short_name": "Resurface",
+  "description": "Capturez maintenant. Retrouvez au bon moment.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f3f7f5",
+  "theme_color": "#087a57",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Nouveau rappel", "short_name": "Nouveau", "url": "/?action=new", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

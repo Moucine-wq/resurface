@@ -1,73 +1,71 @@
-# Resurface v3 — rapport final
+# Rapport final — Resurface v4.1 bêta
 
-## Stack détectée
-Node.js 22 natif, serveur HTTP sans framework, SQLite via `node:sqlite`, Stripe REST, Resend REST, frontend HTML/CSS/JavaScript sans dépendance.
+## Correction demandée
 
-## Priorités corrigées
-- P0/P1 : absence de landing page, proposition de valeur peu claire, prix sans périodicité, sélection de langue dupliquée selon l'écran, états vides faibles, parcours d'inscription trop abrupt.
-- P1 : redirections Stripe fondées sur l'en-tête `Origin`, absence de headers de sécurité, email insuffisamment validé, mot de passe trop court.
-- P2 : responsive, accessibilité clavier, SEO, feedback des actions, devise localisée et sélection manuelle.
+La devise a été réintroduite sans retirer les améliorations de la v4. La PWA, les heures, les fuseaux, la localisation, le digest et la navigation mobile sont conservés.
 
-## UX/UI
-- Landing page complète avec hero, démonstration de digest, fonctionnement en 3 étapes, cas d'usage, tarifs et CTA.
-- Interface connectée recentrée sur la capture rapide.
-- Raccourcis de dates, états vides explicites, compteurs nommés, toasts de confirmation.
-- Report, terminaison, réouverture, suppression avec confirmation.
-- Design mobile et desktop, focus sur la lisibilité, zones tactiles et réduction des animations.
-- Un seul sélecteur de langue par écran.
+## Devise
 
-## Tarification multidevise
-- EUR : 9 €/mois
-- USD : 9 $/mois
-- GBP : 8 £/mois
-- CAD : 12 CA$/mois
-- BRL : 29,90 R$/mois
+- préférence `currency` ajoutée au compte utilisateur ;
+- migration automatique de la base existante ;
+- sélection manuelle persistante ;
+- mode automatique lié au pays ;
+- mise à jour à la connexion lorsque le mode automatique est actif ;
+- aperçu du futur prix formaté avec `Intl.NumberFormat` ;
+- aucun appel Stripe et aucun paiement pendant la bêta ;
+- devises : EUR, USD, GBP, CAD, BRL, XOF, MXN, CHF, AUD, JPY, NGN, GHS, ZAR, INR et CNY.
 
-Chaque devise exige un vrai Price Stripe mensuel. Les devises non configurées sont désactivées dans l'interface. Le serveur refuse un checkout non configuré plutôt que d'afficher un prix différent du paiement.
+## Catégories
 
-## Backend et sécurité
-- Endpoint public `/api/config` pour les devises et disponibilités Stripe.
-- Endpoint `/api/health` pour Railway.
-- Headers CSP, anti-framing, nosniff, referrer policy et permissions policy.
-- Redirections Stripe basées sur `APP_URL`, pas sur un Origin fourni par le client.
-- Validation d'email renforcée et mot de passe minimum de 8 caractères.
-- Autorisations par utilisateur conservées sur toutes les mutations d'éléments.
+Les catégories sont maintenant détaillées et accompagnées d’une explication : travail, personnel, relance, argent, abonnement, administratif, santé, famille, maison, idée, apprentissage, voyage, achats, événement, autre ou aucune catégorie.
 
-## Fichiers modifiés
-- `public/index.html`
-- `public/robots.txt`
-- `public/sitemap.xml`
-- `server.js`
-- `.env.example`
-- `README.md`
-- `package.json`
+## Répétition
 
-## Variables Railway
-Obligatoires : `APP_URL`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RESEND_API_KEY`, `FROM_EMAIL`.
-Prix : `STRIPE_PRICE_ID_EUR`, `STRIPE_PRICE_ID_USD`, `STRIPE_PRICE_ID_GBP`, `STRIPE_PRICE_ID_CAD`, `STRIPE_PRICE_ID_BRL`. `STRIPE_PRICE_ID` reste un fallback EUR.
-Optionnelles : `DIGEST_HOUR_UTC`, `PORT`.
+Nouveau modèle de données :
+
+- `recurrence_type` ;
+- `recurrence_interval` ;
+- compatibilité maintenue avec `recurring_days`.
+
+Règles disponibles : une fois, quotidien, jours ouvrables, hebdomadaire, deux semaines, mensuel, deux mois, trimestre, six mois, annuel et nombre personnalisé de jours.
+
+Les calculs mensuels utilisent les mois calendaires. Exemple : un rappel fixé au 31 janvier passe au dernier jour disponible du mois suivant.
+
+## Migrations
+
+- ajout non destructif de `users.currency` ;
+- ajout non destructif de `items.recurrence_type` ;
+- ajout non destructif de `items.recurrence_interval` ;
+- conversion automatique des anciennes répétitions 1/7/14/30/90/365 jours.
+
+## PWA et cache
+
+- cache du service worker changé en `resurface-v4.1-beta-1` ;
+- l’ancienne version est supprimée lors de l’activation du nouveau service worker ;
+- manifest, icônes et installation conservés.
 
 ## Tests exécutés
-- Vérification syntaxique de `server.js`, `lib/stripe.js`, `lib/email.js` et du JavaScript frontend.
-- Démarrage local sur Node 22.
-- `GET /api/health` et `GET /api/config`.
-- Inscription, authentification, création d'un rappel et lecture de la liste.
-- Refus propre d'un checkout BRL non configuré.
-- Chargement de la landing page en HTTP 200.
 
-## Limites restant à traiter
-- Mot de passe oublié non implémenté.
-- Digest toujours déclenché à une heure UTC globale, pas par fuseau utilisateur.
-- Les contenus juridiques sont des bases informatives, à faire valider avant une commercialisation large.
-- Les vrais paiements, webhooks et emails nécessitent les clés Railway/Stripe/Resend et un test manuel en environnement de test.
-- L'adresse `support@resurface.app` doit être remplacée si ce domaine n'est pas possédé.
+- vérification syntaxique du serveur ;
+- vérification syntaxique du frontend ;
+- vérification syntaxique du service worker ;
+- démarrage sur base temporaire ;
+- inscription avec devise ;
+- modification du pays et de la devise ;
+- création avec catégorie détaillée ;
+- répétition en jours ouvrables ;
+- intervalle personnalisé ;
+- création automatique de la prochaine occurrence ;
+- test de migration depuis une base v4 existante.
 
-## Déploiement Railway
-1. Créer les cinq prix mensuels dans le même produit Stripe.
-2. Ajouter leurs Price IDs dans Railway.
-3. Définir `APP_URL=https://resurface-production-0363.up.railway.app`.
-4. Vérifier le volume monté sur `/app/data`.
-5. Déployer le dossier à la racine du dépôt.
-6. Tester `/api/health`.
-7. Tester chaque devise en mode Stripe Test.
-8. Confirmer les événements webhook `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+Résultat : tous les tests passent.
+
+## Version de santé attendue
+
+```json
+{
+  "ok": true,
+  "version": "4.1.0-beta",
+  "betaMode": true
+}
+```

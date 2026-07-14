@@ -1,90 +1,98 @@
-# Resurface — version production (Stripe + emails)
+# Resurface v4.1 bêta — PWA installable
 
-SaaS complet : comptes utilisateurs, abonnement Premium via Stripe, email quotidien
-de rappel via Resend. Zéro dépendance npm (Node.js natif : `http`, `https`, `node:sqlite`).
+Resurface est une application web progressive installable, pensée comme une vraie application de rappels différés. La bêta reste gratuite et Stripe n’est pas utilisé.
 
-## 1. Configuration Stripe (10 min)
+## Nouveautés v4.1
 
-1. **Crée le produit** : Dashboard Stripe → Product catalog → "+ Add product"
-   - Nom : "Resurface Premium"
-   - Prix : 9€, récurrent, mensuel
-   - Copie l'ID du prix généré (`price_...`) → colle-le dans `STRIPE_PRICE_ID`
+- sélecteur de devise réintroduit et entièrement fonctionnel ;
+- devise enregistrée sur le compte et synchronisée entre appareils ;
+- adaptation automatique de la devise au pays détecté ou sélectionné ;
+- sélection manuelle toujours prioritaire ;
+- 15 devises disponibles : EUR, USD, GBP, CAD, BRL, XOF, MXN, CHF, AUD, JPY, NGN, GHS, ZAR, INR et CNY ;
+- aperçu localisé du futur prix mensuel, sans paiement actif pendant la bêta ;
+- catégories beaucoup plus détaillées ;
+- répétitions plus complètes, avec jours ouvrables, tous les deux mois, tous les six mois et intervalle personnalisé ;
+- explications visibles pour chaque catégorie et chaque répétition.
 
-2. **Récupère ta clé secrète** : Developers → API keys → Secret key (`sk_live_...` en prod, `sk_test_...` pour tester)
-   → colle-la dans `STRIPE_SECRET_KEY`
+## Fonctions conservées
 
-3. **Crée le webhook** : Developers → Webhooks → "+ Add endpoint"
-   - URL : `https://ton-domaine.com/api/stripe/webhook`
-   - Événements à écouter : `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
-   - Une fois créé, copie le "Signing secret" (`whsec_...`) → colle-le dans `STRIPE_WEBHOOK_SECRET`
+- PWA installable avec service worker et icônes ;
+- navigation mobile et bouton d’ajout flottant ;
+- sélection de la date et de l’heure ;
+- fuseau horaire IANA mémorisé ;
+- adaptation automatique du fuseau à la connexion ;
+- pays détecté approximativement depuis l’appareil et modifiable ;
+- position GPS facultative affichée uniquement sur l’appareil ;
+- digest quotidien à l’heure locale ;
+- création, modification, report, réouverture et suppression ;
+- français, anglais, espagnol et portugais.
 
-   ⚠️ Le webhook ne peut être testé qu'une fois l'app déployée avec une URL publique (Stripe doit
-   pouvoir l'atteindre). En local, utilise `stripe listen --forward-to localhost:3000/api/stripe/webhook`
-   avec la [Stripe CLI](https://stripe.com/docs/stripe-cli) si tu veux tester avant de déployer.
+## Catégories disponibles
 
-## 2. Configuration Resend (5 min) — pour les emails de rappel
+- aucune catégorie ;
+- travail ;
+- personnel ;
+- relance ;
+- argent ;
+- abonnement ;
+- administratif ;
+- santé ;
+- famille ;
+- maison ;
+- idée ;
+- apprentissage ;
+- voyage ;
+- achats ;
+- événement ;
+- autre.
 
-1. Crée un compte sur [resend.com](https://resend.com) (gratuit, 100 emails/jour)
-2. Dashboard → API Keys → "Create API Key" → colle-la dans `RESEND_API_KEY`
-3. Pour démarrer vite sans configurer de domaine : `FROM_EMAIL=Resurface <onboarding@resend.dev>`
-   (fonctionne immédiatement mais moins pro). Pour utiliser ton propre domaine : Domains → Add domain,
-   ajoute les enregistrements DNS demandés, puis `FROM_EMAIL=Resurface <rappels@tondomaine.com>`
+## Répétitions disponibles
 
-## 3. Déploiement (Railway recommandé)
+- une seule fois ;
+- chaque jour ;
+- chaque jour ouvrable ;
+- chaque semaine ;
+- toutes les deux semaines ;
+- chaque mois ;
+- tous les deux mois ;
+- tous les trois mois ;
+- tous les six mois ;
+- chaque année ;
+- intervalle personnalisé de 1 à 3650 jours.
 
-1. Pousse ce dossier sur GitHub
-2. Railway → New Project → Deploy from GitHub
-3. Dans l'onglet "Variables" du projet Railway, colle toutes les variables de `.env.example`
-   avec tes vraies valeurs
-4. Ajoute un **Volume** monté sur `/app/data` (sinon la base SQLite est perdue à chaque redéploiement)
-5. Railway détecte automatiquement `node server.js` comme commande de démarrage
-6. Une fois déployé, mets à jour `APP_URL` avec l'URL Railway obtenue, et mets à jour
-   l'URL du webhook Stripe (étape 1.3) avec cette même URL
+La prochaine occurrence est créée lorsque l’utilisateur marque l’occurrence actuelle comme terminée.
 
-## 4. Vérifier que tout fonctionne
+## Déploiement Railway
 
-1. Crée un compte sur ton app déployée
-2. Ajoute 10 rappels → le 11e doit déclencher le paywall
-3. Clique "Passer en Premium" → tu dois être redirigé vers une vraie page Stripe Checkout
-4. Paye avec une carte de test Stripe si tu es en mode test (`4242 4242 4242 4242`, n'importe quelle date future, n'importe quel CVC)
-5. Tu dois être redirigé vers l'app avec le badge "★ Premium" actif en quelques secondes
-6. Vérifie dans Stripe Dashboard → Webhooks que l'événement `checkout.session.completed` est bien marqué "Succeeded"
-7. Le lendemain (ou en ajustant `DIGEST_HOUR_UTC` pour tester plus vite), un email doit arriver
-   avec la liste des rappels du jour, si des rappels sont dus
+1. Remplace les fichiers du dépôt GitHub par le contenu de cette archive.
+2. Ne supprime pas le volume Railway existant.
+3. Monte le volume sur `/app/data`.
+4. Garde la commande `npm start`.
+5. Configure le healthcheck sur `/api/health`.
+6. Variables minimales :
 
-## Ce qui est géré automatiquement
+```env
+APP_URL=https://resurface-production-0363.up.railway.app
+RESEND_API_KEY=re_...        # facultatif pendant les tests
+FROM_EMAIL=Resurface <onboarding@resend.dev>
+```
 
-- **Renouvellement/annulation d'abonnement** : le webhook `customer.subscription.updated`/`.deleted`
-  met à jour le statut Premium automatiquement, sans action manuelle de ta part.
-- **Portail de facturation** : les utilisateurs Premium ont un bouton "Gérer mon abonnement" qui les
-  envoie sur le portail Stripe officiel (annulation, changement de carte, factures — Stripe gère tout).
-- **Sécurité** : mots de passe hashés (PBKDF2 100k itérations), signatures webhook vérifiées avec
-  protection anti-rejeu (5 min), le statut Premium n'est modifiable que côté serveur via webhook
-  vérifié — impossible à falsifier depuis le navigateur.
+Aucune variable Stripe n’est nécessaire.
 
-## Langues
+## Vérification locale
 
-L'interface et les emails de rappel sont disponibles en français, anglais, espagnol et
-portugais. La langue est détectée automatiquement (navigateur), modifiable à tout moment
-via le sélecteur en haut à droite, et sauvegardée sur le compte — donc synchronisée sur
-tous les appareils une fois connecté.
+```bash
+npm run check
+npm test
+npm start
+```
 
-## Limites connues / prochaines étapes
+Ouvre ensuite `http://localhost:3000`.
 
-- Pas de récupération de mot de passe (à ajouter si des utilisateurs le demandent)
-- Le digest est un seul email/jour à heure fixe (`DIGEST_HOUR_UTC`) — pas encore personnalisable par utilisateur
-- Pas de période d'essai gratuite configurée sur Stripe (facile à ajouter dans les paramètres du prix Stripe si tu veux tester la conversion)
-- Pas encore de page de destination marketing (landing page) — l'app actuelle commence directement à l'écran de connexion
+## Migrations
 
-## Stack
+Les migrations SQLite sont automatiques et non destructives. Les utilisateurs, rappels, catégories et anciennes récurrences sont conservés. Les anciennes valeurs de répétition sont converties vers le nouveau système.
 
-Node.js natif uniquement : `http`/`https` pour le serveur et les appels Stripe/Resend,
-`node:sqlite` pour la base de données, `crypto` pour le hashing et les signatures.
-Aucun `npm install` requis, donc zéro dépendance à auditer ou à maintenir.
+## Localisation et vie privée
 
-
-## Tarification multidevise (v3)
-
-L'interface propose EUR, USD, GBP, CAD et BRL. Chaque devise doit correspondre à un vrai Price Stripe mensuel : `STRIPE_PRICE_ID_EUR`, `STRIPE_PRICE_ID_USD`, `STRIPE_PRICE_ID_GBP`, `STRIPE_PRICE_ID_CAD`, `STRIPE_PRICE_ID_BRL`. L'ancienne variable `STRIPE_PRICE_ID` reste le fallback EUR. Ne laissez jamais l'interface afficher une devise dont le Price ID n'est pas configuré en production.
-
-Prix d'affichage par défaut : 9 EUR, 9 USD, 8 GBP, 12 CAD, 29,90 BRL. Ajustez ces montants à la fois dans Stripe et dans `public/index.html` si votre stratégie change.
+Le fuseau horaire est détecté par le navigateur sans GPS. Le pays est estimé depuis la région de l’appareil et reste modifiable. La position exacte n’est jamais nécessaire. Le bouton GPS affiche les coordonnées uniquement dans le navigateur et ne les envoie pas au serveur.
