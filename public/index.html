@@ -6,12 +6,16 @@
   <title>Resurface — Retrouvez ce qui compte au bon moment</title>
   <meta name="description" content="Capturez une idée, une relance ou une chose à vérifier. Resurface vous la remet sous les yeux automatiquement au bon moment.">
   <meta name="theme-color" content="#081511">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Resurface">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta property="og:title" content="Resurface — Retrouvez ce qui compte au bon moment">
   <meta property="og:description" content="Capturez maintenant. Retrouvez au bon moment.">
   <meta property="og:type" content="website">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -147,6 +151,11 @@
         <div class="timezone-line"><span id="timezoneHint"></span><button id="openSettingsLink" data-i18n="change"></button></div>
       </section>
 
+      <div id="notificationNudge" class="notification-nudge hidden" role="region" aria-live="polite">
+        <div><strong data-i18n="push_nudge_title"></strong><p data-i18n="push_nudge_body"></p><small id="notificationNudgeStatus"></small></div>
+        <button class="btn btn-primary" id="enableNotificationsBtn" data-i18n="enable_notifications"></button>
+      </div>
+
       <div class="usage"><span id="usage"></span><button id="upgradeBtn" data-i18n="upgrade"></button></div>
 
       <div class="app-grid">
@@ -184,6 +193,17 @@
           <div class="field"><label for="digestEnabled" data-i18n="email_digest"></label><select id="digestEnabled"><option value="true" data-i18n="enabled"></option><option value="false" data-i18n="disabled"></option></select><small data-i18n="premium_digest_note"></small></div>
         </div>
         <div class="settings-actions"><button type="button" class="btn" id="useDeviceBtn" data-i18n="use_device"></button><button type="button" class="btn" id="gpsBtn" data-i18n="check_gps"></button></div><div class="gps-result" id="gpsResult"></div>
+        <section class="push-settings" aria-labelledby="pushSettingsTitle">
+          <div class="push-settings-head"><div><h3 id="pushSettingsTitle" data-i18n="push_settings_title"></h3><p data-i18n="push_settings_body"></p></div><span class="push-status" id="pushStatusBadge"></span></div>
+          <div id="iosPushInstructions" class="ios-instructions hidden"><strong data-i18n="ios_push_title"></strong><ol><li data-i18n="ios_push_step1"></li><li data-i18n="ios_push_step2"></li><li data-i18n="ios_push_step3"></li></ol></div>
+          <div class="settings-actions">
+            <button type="button" class="btn btn-primary" id="settingsEnableNotifications" data-i18n="enable_notifications"></button>
+            <button type="button" class="btn hidden" id="disableNotificationsBtn" data-i18n="disable_notifications"></button>
+            <button type="button" class="btn" id="testNotificationBtn" data-i18n="send_test_notification"></button>
+          </div>
+          <div class="push-test-tools"><span data-i18n="quick_push_test"></span><button type="button" class="quick" id="schedule1MinBtn" data-i18n="in_one_minute"></button><button type="button" class="quick" id="schedule2MinBtn" data-i18n="in_two_minutes"></button></div>
+          <div id="pushSettingsMessage" class="gps-result"></div>
+        </section>
         <div class="error" id="settingsError"></div><button class="btn btn-primary full tall" type="submit" data-i18n="save_settings"></button>
       </form>
     </div>
@@ -192,6 +212,18 @@
   <div class="overlay" id="snoozeOverlay" role="dialog" aria-modal="true"><div class="dialog"><button class="close" data-close="snoozeOverlay">×</button><h2 data-i18n="snooze_title"></h2><p data-i18n="snooze_sub"></p><form id="snoozeForm"><div class="two-fields"><div class="field"><label data-i18n="date"></label><input id="snoozeDate" type="date" required></div><div class="field"><label data-i18n="time"></label><input id="snoozeTime" type="time" required></div></div><button class="btn btn-primary full tall" data-i18n="snooze"></button></form></div></div>
 
   <div class="overlay" id="editOverlay" role="dialog" aria-modal="true"><div class="dialog dialog-wide"><button class="close" data-close="editOverlay">×</button><h2 data-i18n="edit_title"></h2><form id="editForm"><div class="field"><label data-i18n="capture_label"></label><input id="editText" maxlength="500" required></div><div class="two-fields"><div class="field"><label data-i18n="date"></label><input id="editDate" type="date" required></div><div class="field"><label data-i18n="time"></label><input id="editTime" type="time" required></div></div><div class="two-fields"><div class="field"><label data-i18n="category"></label><select id="editCategory"></select><small id="editCategoryHelp"></small></div><div class="field"><label data-i18n="recurrence"></label><select id="editRecurring"></select><small id="editRecurrenceHelp"></small></div></div><div class="field hidden" id="editRecurrenceIntervalWrap"><label data-i18n="every_days"></label><input id="editRecurrenceInterval" type="number" min="1" max="3650"></div><button class="btn btn-primary full tall" data-i18n="save"></button></form></div></div>
+
+  <div class="overlay" id="itemDetailOverlay" role="dialog" aria-modal="true" aria-labelledby="itemDetailTitle">
+    <div class="dialog item-detail-dialog"><button class="close" data-close="itemDetailOverlay">×</button><span class="eyebrow" data-i18n="resurfacing_now"></span><h2 id="itemDetailTitle"></h2><p id="itemDetailMeta"></p>
+      <div class="detail-actions">
+        <button class="btn btn-primary" id="detailDoneBtn" data-i18n="done"></button>
+        <button class="btn" id="detailAgainBtn" data-i18n="resurface_again"></button>
+        <button class="btn" id="detailTomorrowBtn" data-i18n="tomorrow"></button>
+        <button class="btn" id="detailNextWeekBtn" data-i18n="next_week"></button>
+        <button class="btn btn-danger" id="detailArchiveBtn" data-i18n="archive"></button>
+      </div>
+    </div>
+  </div>
 
   <div class="overlay" id="legalOverlay" role="dialog" aria-modal="true"><div class="dialog"><button class="close" data-close="legalOverlay">×</button><h2 id="legalTitle"></h2><div id="legalBody" class="legal-body"></div></div></div>
   <div class="toast hidden" id="toast" role="status"></div>

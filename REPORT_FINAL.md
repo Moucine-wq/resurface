@@ -1,79 +1,76 @@
-# Rapport final — Resurface v3.2
+# Rapport final — Resurface v3.3 Web Push
 
-## Direction retenue
+## Résultat
 
-La version v4.1 n’a pas été utilisée comme base visuelle. L’interface a été ramenée au design v3 demandé : en-tête compact, grand bloc de capture, deux colonnes Aujourd’hui/À venir et section Terminés. Les fonctions utiles des versions suivantes ont été intégrées à cette structure.
+Le système Web Push a été intégré sur la base visuelle v3.2 sans retirer la landing page, le marketing Premium, les devises, les catégories, les récurrences, les fuseaux horaires, le digest email ou l’installation PWA.
 
-## Changements UX/UI
+## Fonctionnalités livrées
 
-- restauration complète de l’apparence v3 ;
-- suppression de toutes les mentions « bêta » ;
-- restauration de la page d’accueil marketing ;
-- restauration du plan gratuit et du marketing Premium ;
-- restauration du modal Premium ;
-- devises toujours sélectionnables, même lorsqu’un Price ID Stripe manque ;
-- message explicite indiquant si le paiement est prêt dans la devise ;
-- bouton PWA Installer discret ;
-- ajout de l’heure dans la zone de capture ;
-- ajout d’un bouton Réglages sans navigation latérale ;
-- catégories et répétitions détaillées avec une explication courte ;
-- modification et report à une date et heure précises.
+- Manifest complet avec `display: standalone`, icônes standard, maskable et Apple.
+- Service Worker au scope `/`.
+- Réception d’un Push lorsque l’interface est fermée.
+- Clic sur la notification vers `/?resurface=<id>`.
+- Ouverture automatique du détail de l’élément après authentification.
+- Actions : Fait, Refaire surface, Demain, Semaine prochaine, Archiver.
+- Permission uniquement après une action volontaire.
+- Invitation après le premier Resurface.
+- Instructions iPhone dédiées.
+- Détection `granted`, `denied`, `default`, `unsupported` et serveur non configuré.
+- Plusieurs appareils par utilisateur.
+- Clés VAPID privées conservées côté serveur.
+- Dates d’échéance comparées en UTC et fuseau original conservé.
+- Scheduler serveur, verrou de traitement, reprise des claims anciens, retry et nettoyage 404/410.
+- Idempotence par livraison et par appareil.
+- Bouton de notification test.
+- Raccourcis pour programmer dans 1 ou 2 minutes.
+- Logs sans contenu privé.
 
-## Changements backend
+## Migrations automatiques
 
-- stockage UTC des échéances avec affichage dans le fuseau du client ;
-- fuseau, pays, devise, heure du digest et préférence email par utilisateur ;
-- migrations automatiques et compatibles avec les anciennes bases ;
-- limite du plan gratuit : 10 éléments actifs ;
-- Stripe facultatif et multidevise ;
-- digest Premium à l’heure locale ;
-- catégories et répétitions disponibles dans le modèle de données ;
-- récurrences : quotidienne, jours ouvrables, hebdomadaire, toutes les deux semaines, mensuelle, bimestrielle, trimestrielle, semestrielle, annuelle et personnalisée.
-
-## Sécurité et fiabilité
-
-- création automatique du dossier SQLite ;
-- requêtes SQL paramétrées ;
-- vérification d’appartenance des éléments ;
-- validation des dates, heures, fuseaux, pays, devises et intervalles ;
-- PBKDF2 100 000 itérations ;
-- comparaison de hash en temps constant ;
-- limitation légère des tentatives d’authentification ;
-- headers de sécurité ;
-- nettoyage des sessions expirées ;
-- coordonnées GPS non envoyées au serveur.
+Les bases v3.2 sont mises à niveau au démarrage. Les anciens utilisateurs et éléments sont conservés. Un test dédié crée une base au schéma v3.2, démarre v3.3, puis vérifie la présence des anciennes données et des nouvelles tables.
 
 ## Tests exécutés
 
-- vérification syntaxique de tous les fichiers JavaScript ;
-- démarrage avec une base SQLite temporaire ;
-- endpoint de santé ;
-- configuration des 15 devises ;
-- inscription et connexion ;
-- sauvegarde pays/devise/fuseau ;
-- création date + heure ;
-- catégorie détaillée ;
-- répétition détaillée ;
-- modification d’un élément ;
-- création de l’occurrence suivante ;
-- classement Aujourd’hui/À venir/Terminés.
+```bash
+npm run check
+npm test
+npm audit --omit=dev --audit-level=moderate
+```
 
-Résultat : `npm run check` et `npm test` réussissent.
+Résultats :
+
+- syntaxe backend, frontend, Service Worker et librairies : réussie ;
+- migration v3.2 → v3.3 : réussie ;
+- inscription et réglages : réussis ;
+- deux abonnements/appareils par compte : réussis ;
+- notification test vers deux appareils simulés : réussie ;
+- scheduler sur élément arrivé à échéance : réussi ;
+- une livraison par appareil, sans seconde tentative après succès : réussie ;
+- ouverture API de l’élément et archivage : réussis ;
+- audit npm : aucune vulnérabilité connue signalée.
+
+Les envois réels via Apple/Google/Mozilla doivent être validés après ajout des clés VAPID sur Railway, car les tests automatisés utilisent un transport Push simulé et ne peuvent pas accepter une permission système dans cet environnement.
 
 ## Déploiement Railway
 
-1. Envoyer tous les fichiers à la racine du dépôt GitHub.
-2. Conserver le service Railway actuel.
-3. Conserver le volume `/app/data`.
-4. Start Command : `npm start`.
-5. Healthcheck : `/api/health`.
-6. Attendre `SUCCESS`, puis recharger avec `Ctrl + Shift + R`.
-7. Pour une PWA déjà installée, fermer/réouvrir l’application ou la réinstaller afin de renouveler le cache.
+1. Remplacer les fichiers du dépôt par cette version et committer `Deploy Resurface v3.3 Web Push`.
+2. Conserver le volume `/app/data`.
+3. Exécuter localement une seule fois `npm run generate:vapid`.
+4. Ajouter dans Railway :
 
-Réponse attendue :
-
-```json
-{"ok":true,"version":"3.2.0","paymentsConfigured":false}
+```env
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:contact@votredomaine.com
+PUSH_POLL_INTERVAL_MS=30000
+PUSH_MAX_ATTEMPTS=5
 ```
 
-`paymentsConfigured` devient `true` dès qu’une clé Stripe et au moins un Price ID réel sont configurés.
+5. Conserver `Start Command: npm start` et `Healthcheck Path: /api/health`.
+6. Redéployer.
+7. Vérifier que `/api/health` retourne `version: 3.3.0` et `pushConfigured: true`.
+8. Tester d’abord **Envoyer une notification test**, puis un élément à +1 minute.
+
+## Point d’exploitation important
+
+Le scheduler s’exécute dans le processus Node principal, ce qui correspond à l’architecture actuelle : un seul service Railway et une base SQLite locale sur volume. Ne lancez pas plusieurs réplicas du même service contre le même fichier SQLite. Pour une montée en charge multi-instance, migrer le scheduler vers un worker dédié et la base vers PostgreSQL avec verrouillage transactionnel.
