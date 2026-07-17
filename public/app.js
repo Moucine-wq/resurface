@@ -77,8 +77,21 @@ async function loadPushStatus(){
   if(!state.token)return;
   try{
     const server=await request('/push/status');
-    const subscription=await browserPushSubscription().catch(()=>null);
-    if(subscription&&server.configured){try{await request('/push/subscribe',{method:'POST',body:JSON.stringify({subscription:subscription.toJSON(),deviceInfo:deviceInfo()})})}catch{}}
+    let subscription=await browserPushSubscription().catch(()=>null);
+    if(subscription&&server.configured){
+      // Detect VAPID key rotation: if the server key changed, unsubscribe the old one and re-subscribe
+      const currentKey=state.config.push?.publicKey;
+      if(currentKey&&subscription.options?.applicationServerKey){
+        const subKeyBytes=new Uint8Array(subscription.options.applicationServerKey);
+        const serverKeyBytes=urlBase64ToUint8Array(currentKey);
+        if(subKeyBytes.length!==serverKeyBytes.length||!subKeyBytes.every((b,i)=>b===serverKeyBytes[i])){
+          try{await subscription.unsubscribe()}catch{}
+          const registration=await ensureServiceWorker();
+          subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:serverKeyBytes});
+        }
+      }
+      try{await request('/push/subscribe',{method:'POST',body:JSON.stringify({subscription:subscription.toJSON(),deviceInfo:deviceInfo()})})}catch{}
+    }
     state.pushStatus={...server,browserSubscribed:Boolean(subscription),endpoint:subscription?.endpoint||null};
   }catch(err){state.pushStatus={configured:false,browserSubscribed:false,error:err.message}}
   updatePushUi();
