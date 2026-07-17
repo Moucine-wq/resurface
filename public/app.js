@@ -80,11 +80,12 @@ async function loadPushStatus(){
     let subscription=await browserPushSubscription().catch(()=>null);
     if(subscription&&server.configured){
       // Detect VAPID key rotation: if the server key changed, unsubscribe the old one and re-subscribe
-      const currentKey=state.config.push?.publicKey;
-      if(currentKey&&subscription.options?.applicationServerKey){
+      const serverPublicKey=state.config.push?.publicKey;
+      if(serverPublicKey&&subscription.options?.applicationServerKey){
         const subKeyBytes=new Uint8Array(subscription.options.applicationServerKey);
-        const serverKeyBytes=urlBase64ToUint8Array(currentKey);
-        if(subKeyBytes.length!==serverKeyBytes.length||!subKeyBytes.every((b,i)=>b===serverKeyBytes[i])){
+        const serverKeyBytes=urlBase64ToUint8Array(serverPublicKey);
+        const keysMismatch=subKeyBytes.length!==serverKeyBytes.length||!subKeyBytes.every((b,i)=>b===serverKeyBytes[i]);
+        if(keysMismatch){
           try{await subscription.unsubscribe()}catch{}
           const registration=await ensureServiceWorker();
           subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:serverKeyBytes});
