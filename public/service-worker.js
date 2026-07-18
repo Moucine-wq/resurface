@@ -60,15 +60,16 @@ self.addEventListener('push', event => {
 
   const data = payload.data && typeof payload.data === 'object' ? payload.data : {};
   const title = payload.title || 'Something is resurfacing';
+  const resurfaceId = data.resurfaceId || null;
   const options = {
     body: String(payload.body || '').slice(0, 180),
     icon: payload.icon || '/icons/icon-192.png',
     badge: payload.badge || '/icons/badge-96.png',
-    tag: payload.tag || (data.resurfaceId ? `resurface-${data.resurfaceId}` : 'resurface'),
+    tag: payload.tag || (resurfaceId ? `resurface-${resurfaceId}` : 'resurface-general'),
     renotify: false,
     requireInteraction: false,
     data: {
-      resurfaceId: data.resurfaceId || null,
+      resurfaceId,
       url: data.url || '/',
     },
   };
