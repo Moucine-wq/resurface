@@ -113,26 +113,29 @@ function utcDateAndTime(date = new Date()) {
       body: JSON.stringify({ text: 'Retry test item', resurfaceDate: now.date, resurfaceTime: now.time, timezone: 'UTC', recurrenceType: 'once' }),
     });
 
-    // Wait for scheduler to attempt delivery
-    await sleep(3_000);
-
+    // Wait for scheduler to attempt delivery (poll instead of fixed sleep)
     const db = new DatabaseSync(dbPath);
-    const retryDeliveries = db.prepare(`SELECT status, attempts FROM push_deliveries WHERE item_id = ? ORDER BY subscription_id`).all(retryItem.id);
+    let retryDeliveries;
+    for (let i = 0; i < 10; i++) {
+      await sleep(500);
+      retryDeliveries = db.prepare(`SELECT status, attempts FROM push_deliveries WHERE item_id = ? ORDER BY subscription_id`).all(retryItem.id);
+      if (retryDeliveries.length >= 2 && retryDeliveries.some(d => d.status === 'sent')) break;
+    }
     // The valid-device subscription should be 'sent', the temporary one should be 'retry' with attempts >= 1
     const sentDelivery = retryDeliveries.find(d => d.status === 'sent');
     const retryDelivery = retryDeliveries.find(d => d.status === 'retry');
     if (!sentDelivery) throw new Error('Valid device delivery was not sent');
     if (!retryDelivery) throw new Error('Temporary failure was not set to retry status');
     if (retryDelivery.attempts < 1) throw new Error(`Retry delivery should have attempts >= 1, got ${retryDelivery.attempts}`);
-    console.log('  ✓ Temporary failure scheduled for retry');
+    console.log('  \u2713 Temporary failure scheduled for retry');
 
     // --- Test 3: Duplicate notification prevention ---
     console.log('  Test: Duplicate notification prevention...');
-    // The valid-device delivery for retryItem was already sent=1. Wait and check it doesn't get resent.
+    // The valid-device delivery for retryItem was already sent=1. Wait and verify it doesn't get resent.
     await sleep(2_000);
     const afterWait = db.prepare(`SELECT status, attempts FROM push_deliveries WHERE item_id = ? AND status = 'sent'`).all(retryItem.id);
     if (afterWait.length !== 1 || afterWait[0].attempts !== 1) throw new Error('Duplicate notification: sent delivery was attempted again');
-    console.log('  ✓ No duplicate notifications sent');
+    console.log('  \u2713 No duplicate notifications sent');
 
     // --- Test 4: VAPID key rotation (server re-subscribe) ---
     console.log('  Test: VAPID key rotation (re-subscribe endpoint)...');
