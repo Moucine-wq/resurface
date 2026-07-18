@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js && node --check lib/email.js && node --check lib/stripe.js && node --check public/app.js && node --check public/service-worker.js",
-    "test": "node tests/migration.js && node tests/smoke.js",
+    "test": "node tests/migration.js && node tests/smoke.js && node tests/push-scenarios.js",
     "generate:vapid": "node scripts/generate-vapid.js"
   },
   "engines": {
